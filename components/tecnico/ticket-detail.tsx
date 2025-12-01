@@ -34,7 +34,25 @@ export function TicketDetail({
   const [showFirmaDialog, setShowFirmaDialog] = useState(false);
   const [showReporteDetailDialog, setShowReporteDetailDialog] = useState(false);
   const [reporte, setReporte] = useState<any>(null);
+  const [perfil, setPerfil] = useState<{ nombre_completo: string } | null>(null);
   const supabase = createClient();
+
+  // Obtener perfil del técnico
+  useEffect(() => {
+    const obtenerPerfil = async () => {
+      if (tecnicoId) {
+        const { data } = await supabase
+          .from("perfiles")
+          .select("nombre_completo")
+          .eq("id", tecnicoId)
+          .single();
+        if (data) {
+          setPerfil(data);
+        }
+      }
+    };
+    obtenerPerfil();
+  }, [tecnicoId]);
 
   // Buscar el reporte cuando el ticket está finalizado
   useEffect(() => {
@@ -130,6 +148,31 @@ export function TicketDetail({
       border-left: 4px solid #ff6600;
       margin: 10px 0;
     }
+    .footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #ddd;
+    }
+    .signature-box {
+      border: 2px solid #333;
+      padding: 20px;
+      min-height: 100px;
+      border-radius: 3px;
+    }
+    .info-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .info-value {
+      font-size: 13px;
+      color: #333;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -150,6 +193,43 @@ export function TicketDetail({
   <div class="section-title">OBSERVACIÓN</div>
   <div class="content-box">${reporteData.observacion}</div>
   ` : ""}
+  <div class="footer">
+    <div>
+      <div class="info-label">Técnico</div>
+      <div class="info-value">${reporte.tecnico?.nombre_completo || perfil?.nombre_completo || "N/A"}</div>
+      ${reporteData.firma_tecnico && reporteData.firma_tecnico.imagen ? `
+      <div style="margin-top: 20px;">
+        <div class="info-label">Firmado por:</div>
+        <div class="info-value">${reporteData.firma_tecnico.nombre}</div>
+        <div style="margin-top: 10px;">
+          <img src="${reporteData.firma_tecnico.imagen}" alt="Firma del técnico" style="max-width: 200px; max-height: 80px; border: 1px solid #ddd; padding: 5px; background: white;" />
+        </div>
+        <div style="margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 12px;">NOMBRE Y FIRMA TÉCNICO</div>
+      </div>
+      ` : `
+      <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 12px;">NOMBRE Y FIRMA TÉCNICO</div>
+      `}
+    </div>
+    <div>
+      <div class="info-label">Fecha de Generación</div>
+      <div class="info-value">${format(new Date(reporte.created_at), "PPp", { locale: es })}</div>
+      ${reporteData.firma_cliente && reporteData.firma_cliente.imagen ? `
+      <div style="margin-top: 20px;">
+        <div class="info-label">Firmado por:</div>
+        <div class="info-value">${reporteData.firma_cliente.nombre}</div>
+        <div style="margin-top: 10px;">
+          <img src="${reporteData.firma_cliente.imagen}" alt="Firma del cliente" style="max-width: 200px; max-height: 80px; border: 1px solid #ddd; padding: 5px; background: white;" />
+        </div>
+        <div style="margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 12px;">NOMBRE Y FIRMA CLIENTE</div>
+      </div>
+      ` : `
+      <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 12px;">NOMBRE Y FIRMA CLIENTE</div>
+      `}
+    </div>
+  </div>
+  <div style="text-align: center; margin-top: 30px; font-size: 10px; color: #999;">
+    ORIGINAL: CLIENTE | 1ª COPIA: SERVICIO TÉCNICO | 2ª COPIA: CONTROL INTERNO
+  </div>
 </body>
 </html>
     `;
@@ -242,6 +322,60 @@ export function TicketDetail({
       if (document.body.contains(tempDiv)) {
         document.body.removeChild(tempDiv);
       }
+    }
+  };
+
+  const enviarReportePorWhatsApp = async (reporte: any) => {
+    try {
+      // Obtener datos del reporte
+      let reporteData: any = {};
+      try {
+        reporteData = JSON.parse(reporte.reporte_ia as string);
+      } catch {
+        reporteData = {};
+      }
+
+      // Obtener número de celular del cliente
+      const celular = reporteData.celular || 
+                     (ticket.datos_cliente as any)?.celular || 
+                     "";
+
+      if (!celular || celular.trim() === "") {
+        alert("⚠️ No se encontró número de celular del cliente. Por favor, agregue el número en los datos del reporte.");
+        return;
+      }
+
+      // Limpiar número (quitar espacios, guiones, paréntesis)
+      const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
+      // Asegurar que empiece con código de país (Chile: +56)
+      const numeroFormateado = numeroLimpio.startsWith("56") 
+        ? `+${numeroLimpio}` 
+        : numeroLimpio.startsWith("+56")
+        ? numeroLimpio
+        : `+56${numeroLimpio}`;
+
+      // Mensaje para WhatsApp
+      const clienteNombre = reporteData.razon_social || ticket.cliente_nombre || "Cliente";
+      const mensaje = `Hola! Te envío el Reporte Técnico N° ${reporte.ticket_id} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
+      
+      // Crear enlace de WhatsApp
+      const mensajeCodificado = encodeURIComponent(mensaje);
+      const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
+      
+      // Abrir WhatsApp
+      window.open(whatsappUrl, "_blank");
+      
+      // Descargar el PDF automáticamente para que el usuario lo pueda adjuntar
+      await descargarReportePDF(reporte);
+      
+      // Mensaje final
+      setTimeout(() => {
+        alert("✅ WhatsApp abierto. El PDF se descargó automáticamente. Por favor, adjunta el PDF en la conversación de WhatsApp.");
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error enviando por WhatsApp:', error);
+      alert('Error al preparar el envío por WhatsApp: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     }
   };
 
@@ -506,11 +640,16 @@ export function TicketDetail({
             // Función para descargar PDF
             await descargarReportePDF(reporte);
           }}
+          onSendWhatsApp={async () => {
+            await enviarReportePorWhatsApp(reporte);
+          }}
           onFirmaGuardada={() => {
             buscarReporte();
             onUpdate();
           }}
           userRole="tecnico"
+          tecnicoId={tecnicoId}
+          tecnicoNombre={perfil?.nombre_completo}
         />
       )}
     </div>

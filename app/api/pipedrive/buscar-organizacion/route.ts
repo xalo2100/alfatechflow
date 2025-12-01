@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buscarOrganizaciones, obtenerOrganizacionPorId, mapearOrganizacionAFormulario, buscarEnPipedriveCompleto } from "@/lib/pipedrive";
 
+// Forzar que esta ruta sea dinámica (no pre-renderizar)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -33,6 +36,31 @@ export async function GET(request: NextRequest) {
     console.log(`[API] ==========================================`);
     
     try {
+      // Verificar credenciales ANTES de buscar
+      console.log(`[API] 🔍 Verificando credenciales de Pipedrive...`);
+      
+      // Importar las funciones de obtención de credenciales
+      const { getPipedriveApiKey, getPipedriveDomain } = await import("@/lib/pipedrive");
+      
+      let apiKey: string;
+      let domain: string;
+      
+      try {
+        apiKey = await getPipedriveApiKey();
+        domain = await getPipedriveDomain();
+        console.log(`[API] ✅ Credenciales obtenidas - Dominio: ${domain}, API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'NO CONFIGURADA'}`);
+      } catch (credencialesError: any) {
+        console.error(`[API] ❌ Error obteniendo credenciales:`, credencialesError);
+        return NextResponse.json(
+          { 
+            error: credencialesError.message || "Error al obtener credenciales de Pipedrive",
+            detalles: "Por favor, configura la API key y dominio de Pipedrive en el panel de administración.",
+            resultados: []
+          },
+          { status: 400 } // Cambiar a 400 porque es un error de configuración, no del servidor
+        );
+      }
+      
       // Usar la función maestra que busca en organizaciones Y personas
       console.log(`[API] 📞 Llamando a buscarEnPipedriveCompleto...`);
       const datosCompletos = await buscarEnPipedriveCompleto(query.trim());
@@ -73,13 +101,20 @@ export async function GET(request: NextRequest) {
       console.error(`[API] Mensaje:`, error.message);
       console.error(`[API] Stack:`, error.stack);
       console.error(`[API] ==========================================`);
+      
+      // Determinar si es un error de configuración o un error de servidor
+      const esErrorConfiguracion = error.message?.includes("no configurada") || 
+                                    error.message?.includes("no configurado") ||
+                                    error.message?.includes("Error al obtener credenciales");
+      
       return NextResponse.json(
         { 
           error: error.message || "Error al buscar en Pipedrive", 
           resultados: [],
-          detalles: error.stack 
+          detalles: error.stack,
+          tipoError: esErrorConfiguracion ? "configuracion" : "servidor"
         },
-        { status: 500 }
+        { status: esErrorConfiguracion ? 400 : 500 }
       );
     }
   } catch (error: any) {

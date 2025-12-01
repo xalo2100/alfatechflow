@@ -26,14 +26,20 @@ export function TecnicoDashboard({ perfil }: { perfil: any }) {
     // Tickets abiertos (sin asignar)
     const { data: abiertos } = await supabase
       .from("tickets")
-      .select("*")
+      .select(`
+        *,
+        tecnico:perfiles!tickets_asignado_a_fkey(nombre_completo, id)
+      `)
       .eq("estado", "abierto")
       .order("created_at", { ascending: false });
 
     // Mis tickets (asignados a mí) - estados activos
     const { data: asignados } = await supabase
       .from("tickets")
-      .select("*")
+      .select(`
+        *,
+        tecnico:perfiles!tickets_asignado_a_fkey(nombre_completo, id)
+      `)
       .eq("asignado_a", perfil.id)
       .in("estado", ["asignado", "en_proceso", "espera_repuesto"])
       .order("created_at", { ascending: false });
@@ -43,7 +49,8 @@ export function TecnicoDashboard({ perfil }: { perfil: any }) {
       .from("tickets")
       .select(`
         *,
-        reportes:reportes(id, created_at)
+        reportes:reportes(id, created_at),
+        tecnico:perfiles!tickets_asignado_a_fkey(nombre_completo, id)
       `)
       .eq("asignado_a", perfil.id)
       .in("estado", ["finalizado", "entregado"])

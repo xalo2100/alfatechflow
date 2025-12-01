@@ -288,7 +288,7 @@ async function generarHTMLReporte(reporte: any, reporteData: any): Promise<strin
     ${generarSeccionObservacion(reporteData)}
     ${generarSeccionRepuestos(reporte, reporteData)}
     ${generarSeccionTiempos(reporteData)}
-    ${generarSeccionFirmas(reporte)}
+    ${generarSeccionFirmas(reporte, reporteData)}
     
     <!-- Pixel de seguimiento para detectar cuando el cliente lee el email -->
     <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/reportes/track-lectura?reporteId=${reporte.id}" 
@@ -538,15 +538,27 @@ function generarSeccionTiempos(reporteData: any): string {
   `;
 }
 
-function generarSeccionFirmas(reporte: any): string {
+function generarSeccionFirmas(reporte: any, reporteData: any): string {
   return `
     <div class="footer">
       <div class="signature-box">
         <div class="signature-label">NOMBRE Y FIRMA TÉCNICO</div>
-        <div style="margin-top: 40px;">${reporte.tecnico?.nombre_completo || "N/A"}</div>
+        <div style="margin-top: 10px;">${reporte.tecnico?.nombre_completo || "N/A"}</div>
+        ${reporteData.firma_tecnico && reporteData.firma_tecnico.imagen ? `
+        <div style="margin-top: 15px;">
+          <div style="font-size: 10px; color: #666; margin-bottom: 5px;">Firmado por: ${reporteData.firma_tecnico.nombre}</div>
+          <img src="${reporteData.firma_tecnico.imagen}" alt="Firma del técnico" style="max-width: 200px; max-height: 60px; border: 1px solid #ddd; padding: 3px; background: white;" />
+        </div>
+        ` : ""}
       </div>
       <div class="signature-box">
         <div class="signature-label">NOMBRE Y FIRMA CLIENTE</div>
+        ${reporteData.firma_cliente && reporteData.firma_cliente.imagen ? `
+        <div style="margin-top: 15px;">
+          <div style="font-size: 10px; color: #666; margin-bottom: 5px;">Firmado por: ${reporteData.firma_cliente.nombre}</div>
+          <img src="${reporteData.firma_cliente.imagen}" alt="Firma del cliente" style="max-width: 200px; max-height: 60px; border: 1px solid #ddd; padding: 3px; background: white;" />
+        </div>
+        ` : ""}
       </div>
     </div>
     <div style="margin-top: 20px; text-align: center; font-size: 11px; color: #666;">

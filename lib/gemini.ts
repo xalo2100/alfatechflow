@@ -1,56 +1,77 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { decrypt } from "@/lib/encryption";
 
 /**
  * Obtiene la API key de Gemini desde la base de datos (encriptada)
+ * Usa el cliente de administración para leer desde API routes del servidor
  */
 export async function getGeminiApiKey(): Promise<string> {
-  const supabase = await createClient();
-  
-  // Intentar obtener desde la base de datos
-  const { data: config, error: configError } = await supabase
-    .from("configuraciones")
-    .select("valor_encriptado")
-    .eq("clave", "gemini_api_key")
-    .maybeSingle();
+  try {
+    // Usar cliente de admin para tener permisos completos en el servidor
+    const supabase = createAdminClient();
+    
+    console.log(`[GEMINI] 🔑 Obteniendo API key desde base de datos...`);
+    
+    // Intentar obtener desde la base de datos
+    const { data: config, error: configError } = await supabase
+      .from("configuraciones")
+      .select("valor_encriptado")
+      .eq("clave", "gemini_api_key")
+      .maybeSingle();
 
-  if (configError) {
-    console.error("❌ Error consultando configuración de Gemini:", configError);
-    const envKey = process.env.GEMINI_API_KEY;
-    if (envKey) {
-      console.log("⚠️ Usando API key de Gemini de variable de entorno debido a error en base de datos");
-      return envKey;
-    }
-    throw new Error("Error al acceder a la configuración de la API key de Gemini. Verifica tus permisos.");
-  }
-
-  if (config?.valor_encriptado) {
-    try {
-      const decrypted = await decrypt(config.valor_encriptado);
-      if (!decrypted || decrypted.trim() === "") {
-        throw new Error("API key de Gemini desencriptada está vacía");
-      }
-      return decrypted.trim();
-    } catch (error: any) {
-      console.error("❌ Error desencriptando API key de Gemini:", error);
+    if (configError) {
+      console.error("❌ Error consultando configuración de Gemini:", configError);
       const envKey = process.env.GEMINI_API_KEY;
       if (envKey) {
-        console.log("✅ Usando API key de Gemini de variable de entorno");
+        console.log("⚠️ Usando API key de Gemini de variable de entorno debido a error en base de datos");
         return envKey;
       }
-      throw new Error("Error al desencriptar la API key de Gemini guardada. Por favor, vuelve a configurar la API key en el panel de administración.");
+      throw new Error("Error al acceder a la configuración de la API key de Gemini. Verifica tus permisos.");
     }
-  }
 
-  // Fallback a variable de entorno
-  const envKey = process.env.GEMINI_API_KEY;
-  if (envKey) {
-    console.log("✅ Usando API key de Gemini de variable de entorno");
-    return envKey;
-  }
+    if (config?.valor_encriptado) {
+      try {
+        console.log(`[GEMINI] 🔓 Desencriptando API key...`);
+        const decrypted = await decrypt(config.valor_encriptado);
+        if (!decrypted || decrypted.trim() === "") {
+          throw new Error("API key de Gemini desencriptada está vacía");
+        }
+        console.log(`[GEMINI] ✅ API key obtenida correctamente`);
+        return decrypted.trim();
+      } catch (error: any) {
+        console.error("❌ Error desencriptando API key de Gemini:", error);
+        const envKey = process.env.GEMINI_API_KEY;
+        if (envKey) {
+          console.log("✅ Usando API key de Gemini de variable de entorno");
+          return envKey;
+        }
+        throw new Error(`Error al desencriptar la API key de Gemini: ${error.message || "Error desconocido"}. Por favor, vuelve a configurar la API key en el panel de administración.`);
+      }
+    } else {
+      console.warn(`[GEMINI] ⚠️ No se encontró configuración en base de datos`);
+    }
 
-  throw new Error("API key de Gemini no configurada. Por favor, configúrala en el panel de administración.");
+    // Fallback a variable de entorno
+    const envKey = process.env.GEMINI_API_KEY;
+    if (envKey) {
+      console.log("✅ Usando API key de Gemini de variable de entorno");
+      return envKey;
+    }
+
+    throw new Error("API key de Gemini no configurada. Por favor, configúrala en el panel de administración.");
+  } catch (error: any) {
+    console.error(`[GEMINI] ❌ Error obteniendo API key:`, error);
+    // Si es un error de configuración del cliente admin, intentar con variable de entorno
+    if (error.message?.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      const envKey = process.env.GEMINI_API_KEY;
+      if (envKey) {
+        console.log("✅ Usando API key de Gemini de variable de entorno como fallback");
+        return envKey;
+      }
+    }
+    throw error;
+  }
 }
 
 const SYSTEM_PROMPT = `Eres un supervisor técnico de alto nivel experto en redacción de informes de servicio al cliente. Tu tarea es recibir notas breves, informales y posiblemente con errores ortográficos de un técnico de reparación. Debes transformar esas notas en un Informe de Servicio Técnico profesional, empático y claro.

@@ -89,6 +89,12 @@ export function TicketListView({ tickets, onViewDetail, onRequestUrgent }: Ticke
                   )}
                 </div>
                 <div className="space-y-1">
+                  {(ticket as any).tecnico && (
+                    <>
+                      <p className="font-semibold text-sm text-muted-foreground">Técnico Asignado</p>
+                      <p className="text-sm font-medium text-blue-600">{(ticket as any).tecnico.nombre_completo}</p>
+                    </>
+                  )}
                   {ticket.dispositivo_modelo && (
                     <>
                       <p className="font-semibold text-sm text-muted-foreground">Equipo/Producto</p>

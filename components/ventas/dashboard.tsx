@@ -31,7 +31,10 @@ export function VentasDashboard({ perfil }: { perfil: any }) {
   const fetchTickets = async () => {
     const { data, error } = await supabase
       .from("tickets")
-      .select("*")
+      .select(`
+        *,
+        tecnico:perfiles!tickets_asignado_a_fkey(nombre_completo, id)
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {

@@ -1,85 +1,135 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { decrypt } from "@/lib/encryption";
 
 /**
  * Obtiene la API key de Pipedrive desde la base de datos (encriptada)
+ * Usa el cliente de administración para leer desde API routes del servidor
  */
 export async function getPipedriveApiKey(): Promise<string> {
-  const supabase = await createClient();
-  
-  // Intentar obtener desde la base de datos
-  const { data: config, error: configError } = await supabase
-    .from("configuraciones")
-    .select("valor_encriptado")
-    .eq("clave", "pipedrive_api_key")
-    .maybeSingle();
+  try {
+    // Usar cliente de admin para tener permisos completos en el servidor
+    const supabase = createAdminClient();
+    
+    console.log(`[PIPEDRIVE] 🔑 Obteniendo API key desde base de datos...`);
+    
+    // Intentar obtener desde la base de datos
+    const { data: config, error: configError } = await supabase
+      .from("configuraciones")
+      .select("valor_encriptado")
+      .eq("clave", "pipedrive_api_key")
+      .maybeSingle();
 
-  if (configError) {
-    console.error("❌ Error consultando configuración de Pipedrive:", configError);
-    const envKey = process.env.PIPEDRIVE_API_KEY;
-    if (envKey) {
-      console.log("⚠️ Usando API key de Pipedrive de variable de entorno debido a error en base de datos");
-      return envKey;
-    }
-    throw new Error("Error al acceder a la configuración de la API key de Pipedrive. Verifica tus permisos.");
-  }
-
-  if (config?.valor_encriptado) {
-    try {
-      const decrypted = await decrypt(config.valor_encriptado);
-      if (!decrypted || decrypted.trim() === "") {
-        throw new Error("API key de Pipedrive desencriptada está vacía");
-      }
-      return decrypted.trim();
-    } catch (error: any) {
-      console.error("❌ Error desencriptando API key de Pipedrive:", error);
+    if (configError) {
+      console.error("❌ Error consultando configuración de Pipedrive:", configError);
       const envKey = process.env.PIPEDRIVE_API_KEY;
       if (envKey) {
-        console.log("✅ Usando API key de Pipedrive de variable de entorno");
+        console.log("⚠️ Usando API key de Pipedrive de variable de entorno debido a error en base de datos");
         return envKey;
       }
-      throw new Error("Error al desencriptar la API key de Pipedrive guardada. Por favor, vuelve a configurar la API key en el panel de administración.");
+      throw new Error("Error al acceder a la configuración de la API key de Pipedrive. Verifica tus permisos.");
     }
-  }
 
-  // Fallback a variable de entorno
-  const envKey = process.env.PIPEDRIVE_API_KEY;
-  if (envKey) {
-    console.log("✅ Usando API key de Pipedrive de variable de entorno");
-    return envKey;
-  }
+    if (config?.valor_encriptado) {
+      try {
+        console.log(`[PIPEDRIVE] 🔓 Desencriptando API key...`);
+        const decrypted = await decrypt(config.valor_encriptado);
+        if (!decrypted || decrypted.trim() === "") {
+          throw new Error("API key de Pipedrive desencriptada está vacía");
+        }
+        console.log(`[PIPEDRIVE] ✅ API key obtenida correctamente`);
+        return decrypted.trim();
+      } catch (error: any) {
+        console.error("❌ Error desencriptando API key de Pipedrive:", error);
+        const envKey = process.env.PIPEDRIVE_API_KEY;
+        if (envKey) {
+          console.log("✅ Usando API key de Pipedrive de variable de entorno");
+          return envKey;
+        }
+        throw new Error(`Error al desencriptar la API key de Pipedrive: ${error.message || "Error desconocido"}. Por favor, vuelve a configurar la API key en el panel de administración.`);
+      }
+    } else {
+      console.warn(`[PIPEDRIVE] ⚠️ No se encontró configuración en base de datos`);
+    }
 
-  throw new Error("API key de Pipedrive no configurada. Por favor, configúrala en el panel de administración.");
+    // Fallback a variable de entorno
+    const envKey = process.env.PIPEDRIVE_API_KEY;
+    if (envKey) {
+      console.log("✅ Usando API key de Pipedrive de variable de entorno");
+      return envKey;
+    }
+
+    throw new Error("API key de Pipedrive no configurada. Por favor, configúrala en el panel de administración.");
+  } catch (error: any) {
+    console.error(`[PIPEDRIVE] ❌ Error obteniendo API key:`, error);
+    // Si es un error de configuración del cliente admin, intentar con variable de entorno
+    if (error.message?.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      const envKey = process.env.PIPEDRIVE_API_KEY;
+      if (envKey) {
+        console.log("✅ Usando API key de Pipedrive de variable de entorno como fallback");
+        return envKey;
+      }
+    }
+    throw error;
+  }
 }
 
 /**
  * Obtiene el dominio de Pipedrive desde la base de datos
+ * Usa el cliente de administración para leer desde API routes del servidor
  */
 export async function getPipedriveDomain(): Promise<string> {
-  const supabase = await createClient();
-  
-  const { data: config } = await supabase
-    .from("configuraciones")
-    .select("valor_encriptado")
-    .eq("clave", "pipedrive_domain")
-    .maybeSingle();
+  try {
+    // Usar cliente de admin para tener permisos completos en el servidor
+    const supabase = createAdminClient();
+    
+    console.log(`[PIPEDRIVE] 🔑 Obteniendo dominio desde base de datos...`);
+    
+    const { data: config, error: configError } = await supabase
+      .from("configuraciones")
+      .select("valor_encriptado")
+      .eq("clave", "pipedrive_domain")
+      .maybeSingle();
 
-  if (config?.valor_encriptado) {
-    try {
-      const decrypted = await decrypt(config.valor_encriptado);
-      return decrypted.trim();
-    } catch (error) {
-      console.error("Error desencriptando dominio de Pipedrive:", error);
+    if (configError) {
+      console.error("❌ Error consultando dominio de Pipedrive:", configError);
+      // Continuar con fallback
     }
-  }
 
-  // Fallback a variable de entorno
-  const envDomain = process.env.PIPEDRIVE_DOMAIN;
-  if (envDomain) {
-    return envDomain.trim();
-  }
+    if (config?.valor_encriptado) {
+      try {
+        console.log(`[PIPEDRIVE] 🔓 Desencriptando dominio...`);
+        const decrypted = await decrypt(config.valor_encriptado);
+        if (decrypted && decrypted.trim() !== "") {
+          console.log(`[PIPEDRIVE] ✅ Dominio obtenido correctamente`);
+          return decrypted.trim();
+        }
+      } catch (error) {
+        console.error("❌ Error desencriptando dominio de Pipedrive:", error);
+      }
+    } else {
+      console.warn(`[PIPEDRIVE] ⚠️ No se encontró dominio en base de datos`);
+    }
 
-  throw new Error("Dominio de Pipedrive no configurado. Por favor, configúralo en el panel de administración.");
+    // Fallback a variable de entorno
+    const envDomain = process.env.PIPEDRIVE_DOMAIN;
+    if (envDomain) {
+      console.log("✅ Usando dominio de Pipedrive de variable de entorno");
+      return envDomain.trim();
+    }
+
+    throw new Error("Dominio de Pipedrive no configurado. Por favor, configúralo en el panel de administración.");
+  } catch (error: any) {
+    console.error(`[PIPEDRIVE] ❌ Error obteniendo dominio:`, error);
+    // Si es un error de configuración del cliente admin, intentar con variable de entorno
+    if (error.message?.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      const envDomain = process.env.PIPEDRIVE_DOMAIN;
+      if (envDomain) {
+        console.log("✅ Usando dominio de Pipedrive de variable de entorno como fallback");
+        return envDomain.trim();
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -116,9 +166,30 @@ export async function buscarEnPipedriveCompleto(
   telefono?: string;
   esOrganizacion: boolean;
 } | null> {
+  let apiKey: string;
+  let domain: string;
+  
   try {
-    const apiKey = await getPipedriveApiKey();
-    const domain = await getPipedriveDomain();
+    // Obtener credenciales con manejo de errores explícito
+    console.log(`[PIPEDRIVE] 🔑 Obteniendo credenciales...`);
+    apiKey = await getPipedriveApiKey();
+    domain = await getPipedriveDomain();
+    
+    if (!apiKey || apiKey.trim() === "") {
+      throw new Error("API key de Pipedrive está vacía o no configurada. Por favor, configúrala en el panel de administración.");
+    }
+    
+    if (!domain || domain.trim() === "") {
+      throw new Error("Dominio de Pipedrive está vacío o no configurado. Por favor, configúralo en el panel de administración.");
+    }
+    
+    console.log(`[PIPEDRIVE] ✅ Credenciales obtenidas - Dominio: ${domain}`);
+  } catch (credencialesError: any) {
+    console.error(`[PIPEDRIVE] ❌ Error obteniendo credenciales:`, credencialesError);
+    throw new Error(`Error al obtener credenciales de Pipedrive: ${credencialesError.message || "Credenciales no configuradas"}`);
+  }
+  
+  try {
     const baseUrl = `https://${domain}.pipedrive.com/api/v1`;
     const term = encodeURIComponent(termino.trim());
 
@@ -147,16 +218,41 @@ export async function buscarEnPipedriveCompleto(
     if (!resOrgs.ok) {
       const errorText = await resOrgs.text();
       console.error(`[PIPEDRIVE] ❌ Error en búsqueda de organizaciones: ${resOrgs.status}`, errorText);
-      throw new Error(`Error al buscar organizaciones: ${resOrgs.status} ${errorText}`);
+      
+      // Si es un error de autenticación, dar un mensaje más claro
+      if (resOrgs.status === 401) {
+        throw new Error("API key de Pipedrive inválida. Por favor, verifica tu API key en la configuración.");
+      } else if (resOrgs.status === 403) {
+        throw new Error("No tienes permisos para buscar en Pipedrive. Verifica tu API key.");
+      } else if (resOrgs.status === 404) {
+        throw new Error("Dominio de Pipedrive no encontrado. Verifica que el dominio sea correcto.");
+      }
+      
+      throw new Error(`Error al buscar organizaciones: ${resOrgs.status} ${errorText.substring(0, 200)}`);
     }
     if (!resPersonas.ok) {
       const errorText = await resPersonas.text();
       console.error(`[PIPEDRIVE] ❌ Error en búsqueda de personas: ${resPersonas.status}`, errorText);
-      // No lanzar error aquí, solo loguear
+      // No lanzar error aquí, solo loguear (las personas son opcionales)
     }
 
-    const jsonOrgs = await resOrgs.json();
-    const jsonPersonas = resPersonas.ok ? await resPersonas.json() : { success: false, data: { items: [] } };
+    let jsonOrgs: any;
+    let jsonPersonas: any;
+    
+    try {
+      jsonOrgs = await resOrgs.json();
+    } catch (error) {
+      const errorText = await resOrgs.text();
+      console.error(`[PIPEDRIVE] ❌ Error parseando JSON de organizaciones:`, errorText);
+      throw new Error("Error al procesar respuesta de Pipedrive. La respuesta no es JSON válido.");
+    }
+    
+    try {
+      jsonPersonas = resPersonas.ok ? await resPersonas.json() : { success: false, data: { items: [] } };
+    } catch (error) {
+      console.warn(`[PIPEDRIVE] ⚠️ Error parseando JSON de personas, usando respuesta vacía`);
+      jsonPersonas = { success: false, data: { items: [] } };
+    }
 
     console.log(`[PIPEDRIVE] 📊 Respuesta organizaciones RAW:`, JSON.stringify(jsonOrgs, null, 2));
     console.log(`[PIPEDRIVE] 📊 Respuesta personas RAW:`, JSON.stringify(jsonPersonas, null, 2));
@@ -217,16 +313,43 @@ export async function buscarEnPipedriveCompleto(
       const orgId = orgItem.id;
       console.log(`[PIPEDRIVE] ✅ Organización encontrada: "${orgItem.name}", ID: ${orgId}`);
 
-      // 1. Obtener detalles de la empresa (RUT, Dirección)
-      const orgDetailsRes = await fetch(`${baseUrl}/organizations/${orgId}?api_token=${apiKey}`);
-      const orgDetails = await orgDetailsRes.json();
+      try {
+        // 1. Obtener detalles de la empresa (RUT, Dirección)
+        const orgDetailsRes = await fetch(`${baseUrl}/organizations/${orgId}?api_token=${apiKey}`);
+        
+        if (!orgDetailsRes.ok) {
+          const errorText = await orgDetailsRes.text();
+          console.error(`[PIPEDRIVE] ❌ Error obteniendo detalles de organización ${orgId}: ${orgDetailsRes.status}`, errorText);
+          throw new Error(`Error al obtener detalles de la organización: ${orgDetailsRes.status}`);
+        }
+        
+        const orgDetails = await orgDetailsRes.json();
+        
+        if (!orgDetails.success || !orgDetails.data) {
+          console.error(`[PIPEDRIVE] ❌ Respuesta de detalles inválida:`, orgDetails);
+          throw new Error("No se pudieron obtener los detalles de la organización");
+        }
 
-      // 2. Obtener personas asociadas para llenar el "Responsable"
-      const orgPeopleRes = await fetch(`${baseUrl}/organizations/${orgId}/persons?api_token=${apiKey}`);
-      const orgPeople = await orgPeopleRes.json();
-      const personaAsociada = (orgPeople.data && orgPeople.data.length > 0) ? orgPeople.data[0] : null;
+        // 2. Obtener personas asociadas para llenar el "Responsable"
+        let personaAsociada = null;
+        try {
+          const orgPeopleRes = await fetch(`${baseUrl}/organizations/${orgId}/persons?api_token=${apiKey}`);
+          if (orgPeopleRes.ok) {
+            const orgPeople = await orgPeopleRes.json();
+            personaAsociada = (orgPeople.data && orgPeople.data.length > 0) ? orgPeople.data[0] : null;
+          } else {
+            console.warn(`[PIPEDRIVE] ⚠️ No se pudieron obtener personas asociadas (opcional)`);
+          }
+        } catch (peopleError) {
+          console.warn(`[PIPEDRIVE] ⚠️ Error obteniendo personas (opcional):`, peopleError);
+          // No lanzar error, las personas son opcionales
+        }
 
-      return formatearDatosPipedrive(orgDetails.data, personaAsociada, true);
+        return formatearDatosPipedrive(orgDetails.data, personaAsociada, true);
+      } catch (error: any) {
+        console.error(`[PIPEDRIVE] ❌ Error procesando organización ${orgId}:`, error);
+        throw new Error(`Error al procesar organización: ${error.message || "Error desconocido"}`);
+      }
     }
 
     // --- ESCENARIO B: ENCONTRÓ PERSONA ---
@@ -235,23 +358,53 @@ export async function buscarEnPipedriveCompleto(
       const personId = personItem.id;
       console.log(`[PIPEDRIVE] ✅ Persona encontrada: "${personItem.name}", ID: ${personId}`);
 
-      // 1. Obtener detalles de la persona (Email, Teléfono y ID de Organización)
-      const personDetailsRes = await fetch(`${baseUrl}/persons/${personId}?api_token=${apiKey}`);
-      const personDetails = await personDetailsRes.json();
-      const personaData = personDetails.data;
-      const orgIdAsociado = personaData.org_id ? (personaData.org_id.value || personaData.org_id) : null;
+      try {
+        // 1. Obtener detalles de la persona (Email, Teléfono y ID de Organización)
+        const personDetailsRes = await fetch(`${baseUrl}/persons/${personId}?api_token=${apiKey}`);
+        
+        if (!personDetailsRes.ok) {
+          const errorText = await personDetailsRes.text();
+          console.error(`[PIPEDRIVE] ❌ Error obteniendo detalles de persona ${personId}: ${personDetailsRes.status}`, errorText);
+          throw new Error(`Error al obtener detalles de la persona: ${personDetailsRes.status}`);
+        }
+        
+        const personDetails = await personDetailsRes.json();
+        
+        if (!personDetails.success || !personDetails.data) {
+          console.error(`[PIPEDRIVE] ❌ Respuesta de detalles de persona inválida:`, personDetails);
+          throw new Error("No se pudieron obtener los detalles de la persona");
+        }
+        
+        const personaData = personDetails.data;
+        const orgIdAsociado = personaData.org_id ? (personaData.org_id.value || personaData.org_id) : null;
 
-      let orgDetailsData = null;
+        let orgDetailsData = null;
 
-      // 2. Si la persona tiene empresa, buscamos la empresa para sacar el RUT
-      if (orgIdAsociado) {
-        console.log(`[PIPEDRIVE] 🔗 Persona tiene organización asociada, ID: ${orgIdAsociado}`);
-        const orgDetailsRes = await fetch(`${baseUrl}/organizations/${orgIdAsociado}?api_token=${apiKey}`);
-        const orgDetails = await orgDetailsRes.json();
-        orgDetailsData = orgDetails.data;
+        // 2. Si la persona tiene empresa, buscamos la empresa para sacar el RUT
+        if (orgIdAsociado) {
+          try {
+            console.log(`[PIPEDRIVE] 🔗 Persona tiene organización asociada, ID: ${orgIdAsociado}`);
+            const orgDetailsRes = await fetch(`${baseUrl}/organizations/${orgIdAsociado}?api_token=${apiKey}`);
+            
+            if (orgDetailsRes.ok) {
+              const orgDetails = await orgDetailsRes.json();
+              if (orgDetails.success && orgDetails.data) {
+                orgDetailsData = orgDetails.data;
+              }
+            } else {
+              console.warn(`[PIPEDRIVE] ⚠️ No se pudo obtener organización asociada (opcional)`);
+            }
+          } catch (orgError) {
+            console.warn(`[PIPEDRIVE] ⚠️ Error obteniendo organización asociada (opcional):`, orgError);
+            // No lanzar error, la organización es opcional para personas
+          }
+        }
+
+        return formatearDatosPipedrive(orgDetailsData, personaData, false);
+      } catch (error: any) {
+        console.error(`[PIPEDRIVE] ❌ Error procesando persona ${personId}:`, error);
+        throw new Error(`Error al procesar persona: ${error.message || "Error desconocido"}`);
       }
-
-      return formatearDatosPipedrive(orgDetailsData, personaData, false);
     }
 
     console.log(`[PIPEDRIVE] ⚠️ No se encontraron resultados`);
@@ -355,9 +508,16 @@ function formatearDatosPipedrive(
                   : "");
   }
 
+  // Validar que al menos tengamos un nombre
+  const razonSocial = orgData?.name || personData?.name || "Sin nombre";
+  
+  if (!razonSocial || razonSocial.trim() === "") {
+    throw new Error("No se pudo obtener el nombre de la organización o persona");
+  }
+
   // RETORNO: Objeto listo para usar
   return {
-    razonSocial: orgData ? orgData.name : (personData ? personData.name : ""),
+    razonSocial: razonSocial,
     rut: rutDetectado || undefined,
     direccion: direccion || undefined,
     ciudad: orgData ? (orgData.city || orgData.address_locality || orgData.address_admin_area_level_1) : undefined,

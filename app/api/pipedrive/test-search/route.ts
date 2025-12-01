@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipedriveApiKey, getPipedriveDomain } from "@/lib/pipedrive";
 
+// Forzar que esta ruta sea dinámica (no pre-renderizar)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

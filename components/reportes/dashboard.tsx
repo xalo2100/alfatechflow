@@ -590,6 +590,68 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
     }
   };
 
+  const enviarReportePorWhatsApp = async (reporte: ReporteConTicket) => {
+    try {
+      // Obtener datos del reporte
+      let reporteData: any = {};
+      try {
+        reporteData = JSON.parse(reporte.reporte_ia as string);
+      } catch {
+        reporteData = {};
+      }
+
+      // Obtener número de celular del cliente
+      const celular = reporteData.celular || 
+                     (reporte.ticket?.datos_cliente as any)?.celular || 
+                     "";
+
+      if (!celular || celular.trim() === "") {
+        alert("⚠️ No se encontró número de celular del cliente. Por favor, agregue el número en los datos del reporte.");
+        return;
+      }
+
+      // Limpiar número (quitar espacios, guiones, paréntesis)
+      const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
+      // Asegurar que empiece con código de país (Chile: +56)
+      const numeroFormateado = numeroLimpio.startsWith("56") 
+        ? `+${numeroLimpio}` 
+        : numeroLimpio.startsWith("+56")
+        ? numeroLimpio
+        : `+56${numeroLimpio}`;
+
+      // Mostrar mensaje de carga
+      const mensajeCarga = "Generando PDF y preparando para WhatsApp...";
+      alert(mensajeCarga);
+
+      // Generar el PDF y obtenerlo como Blob
+      // Por ahora, descargarlo primero y luego permitir que el usuario lo envíe
+      // En una versión futura se puede subir automáticamente
+      
+      // Mensaje para WhatsApp
+      const clienteNombre = reporteData.razon_social || reporte.ticket?.cliente_nombre || "Cliente";
+      const mensaje = `Hola! Te envío el Reporte Técnico N° ${reporte.ticket_id} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
+      
+      // Crear enlace de WhatsApp
+      const mensajeCodificado = encodeURIComponent(mensaje);
+      const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
+      
+      // Abrir WhatsApp
+      window.open(whatsappUrl, "_blank");
+      
+      // Descargar el PDF automáticamente para que el usuario lo pueda adjuntar
+      await descargarReportePDF(reporte);
+      
+      // Mensaje final
+      setTimeout(() => {
+        alert("✅ WhatsApp abierto. El PDF se descargó automáticamente. Por favor, adjunta el PDF en la conversación de WhatsApp.");
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error enviando por WhatsApp:', error);
+      alert('Error al preparar el envío por WhatsApp: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+    }
+  };
+
   const exportarReporte = (reporte: ReporteConTicket) => {
     // Crear ventana para imprimir
     const ventana = window.open("", "_blank");
@@ -954,7 +1016,18 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
     <div>
       <div class="info-label">Técnico</div>
       <div class="info-value">${reporte.tecnico?.nombre_completo || "N/A"}</div>
+      ${reporteData.firma_tecnico && reporteData.firma_tecnico.imagen ? `
+      <div style="margin-top: 20px;">
+        <div class="info-label">Firmado por:</div>
+        <div class="info-value">${reporteData.firma_tecnico.nombre}</div>
+        <div style="margin-top: 10px;">
+          <img src="${reporteData.firma_tecnico.imagen}" alt="Firma del técnico" style="max-width: 200px; max-height: 80px; border: 1px solid #ddd; padding: 5px; background: white;" />
+        </div>
+        <div style="margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 12px;">NOMBRE Y FIRMA TÉCNICO</div>
+      </div>
+      ` : `
       <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 12px;">NOMBRE Y FIRMA TÉCNICO</div>
+      `}
     </div>
     <div>
       <div class="info-label">Fecha de Generación</div>
@@ -1283,10 +1356,13 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
           onOpenChange={(open) => !open && setSelectedReporte(null)}
           onExport={() => exportarReporte(selectedReporte)}
           onDownload={() => descargarReportePDF(selectedReporte)}
+          onSendWhatsApp={() => enviarReportePorWhatsApp(selectedReporte)}
           onFirmaGuardada={() => {
             fetchReportes();
           }}
           userRole={perfil.rol}
+          tecnicoId={perfil.rol === "tecnico" ? perfil.id : undefined}
+          tecnicoNombre={perfil.rol === "tecnico" ? perfil.nombre_completo : undefined}
         />
       )}
     </div>

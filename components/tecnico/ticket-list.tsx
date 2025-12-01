@@ -66,6 +66,12 @@ export function TicketList({
               <p className="font-semibold text-sm text-muted-foreground">Cliente</p>
               <p className="font-medium">{ticket.cliente_nombre}</p>
             </div>
+            {(ticket as any).tecnico && (
+              <div>
+                <p className="font-semibold text-sm text-muted-foreground">Técnico Asignado</p>
+                <p className="text-sm font-medium text-blue-600">{(ticket as any).tecnico.nombre_completo}</p>
+              </div>
+            )}
             {ticket.dispositivo_modelo && (
               <div>
                 <p className="font-semibold text-sm text-muted-foreground">Equipo/Producto</p>

@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Clock, DollarSign, CheckCircle2, XCircle, Pen } from "lucide-react";
+import { Download, FileText, Clock, DollarSign, CheckCircle2, XCircle, Pen, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useTimezone } from "@/lib/use-timezone";
 import type { Database } from "@/types/supabase";
 import { FirmaClienteDialog } from "@/components/reportes/firma-cliente-dialog";
+import { FirmaTecnicoDialog } from "@/components/reportes/firma-tecnico-dialog";
 import { useRouter } from "next/navigation";
 
 type Reporte = Database["public"]["Tables"]["reportes"]["Row"];
@@ -32,8 +33,11 @@ interface ReporteDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onExport: () => void;
   onDownload?: () => void;
+  onSendWhatsApp?: () => void;
   onFirmaGuardada?: () => void;
   userRole?: string;
+  tecnicoId?: string;
+  tecnicoNombre?: string;
 }
 
 export function ReporteDetailDialog({
@@ -42,11 +46,16 @@ export function ReporteDetailDialog({
   onOpenChange,
   onExport,
   onDownload,
+  onSendWhatsApp,
   onFirmaGuardada,
   userRole,
+  tecnicoId,
+  tecnicoNombre,
 }: ReporteDetailDialogProps) {
   const [showFirmaDialog, setShowFirmaDialog] = useState(false);
+  const [showFirmaTecnicoDialog, setShowFirmaTecnicoDialog] = useState(false);
   const { formatDate } = useTimezone();
+  const router = useRouter();
   
   let reporteData: any = {};
   try {
@@ -55,8 +64,10 @@ export function ReporteDetailDialog({
     reporteData = {};
   }
 
-  const tieneFirma = reporteData.firma_cliente && reporteData.firma_cliente.imagen;
-  const puedeFirmar = userRole === "tecnico" && !tieneFirma;
+  const tieneFirmaCliente = reporteData.firma_cliente && reporteData.firma_cliente.imagen;
+  const tieneFirmaTecnico = reporteData.firma_tecnico && reporteData.firma_tecnico.imagen;
+  const puedeFirmarCliente = userRole === "tecnico" && !tieneFirmaCliente;
+  const puedeFirmarTecnico = userRole === "tecnico" && !tieneFirmaTecnico && tecnicoId && tecnicoNombre;
   const emailLeido = reporteData.lectura_email && reporteData.lectura_email.leido;
   const fechaLectura = emailLeido && reporteData.lectura_email.fecha_lectura 
     ? formatDate(new Date(reporteData.lectura_email.fecha_lectura), "PPp", es)
@@ -78,17 +89,29 @@ export function ReporteDetailDialog({
                 )}
               </DialogDescription>
             </div>
-            <div className="flex gap-2">
-              {puedeFirmar && (
+            <div className="flex gap-2 flex-wrap">
+              {puedeFirmarCliente && (
                 <Button onClick={() => setShowFirmaDialog(true)} variant="default">
                   <Pen className="h-4 w-4 mr-2" />
                   Firmar como Cliente
+                </Button>
+              )}
+              {puedeFirmarTecnico && (
+                <Button onClick={() => setShowFirmaTecnicoDialog(true)} variant="secondary">
+                  <Pen className="h-4 w-4 mr-2" />
+                  Firmar como Técnico
                 </Button>
               )}
               {onDownload && (
                 <Button onClick={onDownload} variant="outline">
                   <Download className="h-4 w-4 mr-2" />
                   Descargar PDF
+                </Button>
+              )}
+              {onSendWhatsApp && (
+                <Button onClick={onSendWhatsApp} variant="default" className="bg-green-600 hover:bg-green-700">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Enviar por WhatsApp
                 </Button>
               )}
               <Button onClick={onExport} variant="outline">
@@ -265,7 +288,7 @@ export function ReporteDetailDialog({
           )}
 
           {/* Firma del Cliente */}
-          {tieneFirma && (
+          {tieneFirmaCliente && (
             <div className="border-t pt-4">
               <h3 className="font-semibold mb-3 bg-black text-white p-2 rounded">FIRMA DEL CLIENTE</h3>
               <div className="bg-white p-4 rounded-md border-2 border-gray-300">
@@ -280,6 +303,29 @@ export function ReporteDetailDialog({
                   <img
                     src={reporteData.firma_cliente.imagen}
                     alt="Firma del cliente"
+                    className="max-w-xs h-24 object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Firma del Técnico */}
+          {tieneFirmaTecnico && (
+            <div className="border-t pt-4">
+              <h3 className="font-semibold mb-3 bg-black text-white p-2 rounded">FIRMA DEL TÉCNICO</h3>
+              <div className="bg-white p-4 rounded-md border-2 border-gray-300">
+                <div className="mb-2">
+                  <p className="text-sm text-muted-foreground">Firmado por:</p>
+                  <p className="font-semibold">{reporteData.firma_tecnico.nombre}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(reporteData.firma_tecnico.fecha), "PPp", { locale: es })}
+                  </p>
+                </div>
+                <div className="border-t pt-2">
+                  <img
+                    src={reporteData.firma_tecnico.imagen}
+                    alt="Firma del técnico"
                     className="max-w-xs h-24 object-contain"
                   />
                 </div>
@@ -310,8 +356,23 @@ export function ReporteDetailDialog({
             if (onFirmaGuardada) {
               onFirmaGuardada();
             }
-            // Recargar el diálogo para mostrar la firma
-            window.location.reload();
+            router.refresh();
+          }}
+        />
+      )}
+
+      {showFirmaTecnicoDialog && tecnicoId && tecnicoNombre && (
+        <FirmaTecnicoDialog
+          open={showFirmaTecnicoDialog}
+          onOpenChange={setShowFirmaTecnicoDialog}
+          reporteId={reporte.id}
+          tecnicoNombre={tecnicoNombre}
+          onSuccess={() => {
+            setShowFirmaTecnicoDialog(false);
+            if (onFirmaGuardada) {
+              onFirmaGuardada();
+            }
+            router.refresh();
           }}
         />
       )}
