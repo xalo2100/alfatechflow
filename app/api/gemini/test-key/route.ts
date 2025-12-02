@@ -29,12 +29,12 @@ export async function POST(request: NextRequest) {
     // Primero, listar los modelos disponibles
     console.log("📋 Listando modelos disponibles...");
     let modelosDisponibles: string[] = [];
-    
+
     try {
       // Intentar con v1 primero
       const urlV1 = `https://generativelanguage.googleapis.com/v1/models?key=${cleanedKey}`;
       const responseV1 = await fetch(urlV1);
-      
+
       if (responseV1.ok) {
         const data = await responseV1.json();
         if (data.models && Array.isArray(data.models)) {
@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
           console.log("✅ Modelos disponibles (v1):", modelosDisponibles);
         }
       }
-      
+
       // Si v1 falla, intentar con v1beta
       if (modelosDisponibles.length === 0) {
         const urlV1Beta = `https://generativelanguage.googleapis.com/v1beta/models?key=${cleanedKey}`;
         const responseV1Beta = await fetch(urlV1Beta);
-        
+
         if (responseV1Beta.ok) {
           const data = await responseV1Beta.json();
           if (data.models && Array.isArray(data.models)) {
@@ -65,13 +65,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Si no hay modelos disponibles, usar lista por defecto
-    const modelosParaProbar = modelosDisponibles.length > 0 
-      ? modelosDisponibles 
+    const modelosParaProbar = modelosDisponibles.length > 0
+      ? modelosDisponibles
       : [
-          "gemini-1.5-flash",
-          "gemini-1.5-pro",
-          "gemini-pro",
-        ];
+        "gemini-1.5-pro",
+        "gemini-1.5-pro",
+        "gemini-pro",
+      ];
 
     let modeloFuncionando: string | null = null;
     let versionFuncionando: 'v1' | 'v1beta' = 'v1';
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     // Si llegamos aquí, nada funcionó
     const errorDetails = ultimoError?.message || "Error desconocido";
-    const modelosLista = modelosDisponibles.length > 0 
+    const modelosLista = modelosDisponibles.length > 0
       ? `\n\nModelos disponibles detectados: ${modelosDisponibles.join(", ")}`
       : "";
     return NextResponse.json(

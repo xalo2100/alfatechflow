@@ -52,3 +52,7 @@ echo ""
 echo "📚 Ver DEPLOY_VERCEL.md para guía detallada"
 echo ""
 
+
+
+
+

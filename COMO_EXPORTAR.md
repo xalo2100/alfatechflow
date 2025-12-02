@@ -118,3 +118,7 @@ Después de exportar, tendrás:
 3. Verifica que todas las páginas sean Client Components
 4. Asegúrate de que no uses API routes directamente
 
+
+
+
+

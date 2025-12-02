@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2 } from "lucide-react";
+import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2, Database as DatabaseIcon, Mail } from "lucide-react";
 import { PersonalizacionDialog } from "@/components/admin/personalizacion-dialog";
 import { SupabaseStatus } from "@/components/admin/supabase-status";
+import { PipedriveStatus } from "@/components/admin/pipedrive-status";
+import { GeminiStatus } from "@/components/admin/gemini-status";
+import { ResendStatus } from "@/components/admin/resend-status";
 import { CreateTicketDialog } from "@/components/ventas/create-ticket-dialog";
 import { TicketCard } from "@/components/ventas/ticket-card";
 import { AgregarTecnicoDialog } from "@/components/admin/agregar-tecnico-dialog";
@@ -20,6 +23,8 @@ import { ConfirmarEliminarDialog } from "@/components/admin/confirmar-eliminar-d
 import { AsignarTecnicoDialog } from "@/components/admin/asignar-tecnico-dialog";
 import { ConfigApiDialog } from "@/components/admin/config-api-dialog";
 import { ConfigPipedriveDialog } from "@/components/admin/config-pipedrive-dialog";
+import { ConfigSupabaseDialog } from "@/components/admin/config-supabase-dialog";
+import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -54,6 +59,8 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const [showAgregarUsuario, setShowAgregarUsuario] = useState(false);
   const [showConfigApi, setShowConfigApi] = useState(false);
   const [showConfigPipedrive, setShowConfigPipedrive] = useState(false);
+  const [showConfigSupabase, setShowConfigSupabase] = useState(false);
+  const [showConfigResend, setShowConfigResend] = useState(false);
   const [showPersonalizacion, setShowPersonalizacion] = useState(false);
   const [usuarioParaEliminar, setUsuarioParaEliminar] = useState<UsuarioCompleto | null>(null);
   const [usuarioParaCambiarContraseña, setUsuarioParaCambiarContraseña] = useState<UsuarioCompleto | null>(null);
@@ -62,76 +69,94 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const supabase = createClient();
 
   const fetchStats = async () => {
-    const inicioMes = startOfMonth(new Date()).toISOString();
+    try {
+      const inicioMes = startOfMonth(new Date()).toISOString();
 
-    const { data: ticketsFinalizados } = await supabase
-      .from("tickets")
-      .select("id, asignado_a, created_at, updated_at")
-      .eq("estado", "finalizado")
-      .gte("updated_at", inicioMes);
+      const { data: ticketsFinalizados, error: ticketsError } = await supabase
+        .from("tickets")
+        .select("id, asignado_a, created_at, updated_at")
+        .eq("estado", "finalizado")
+        .gte("updated_at", inicioMes);
 
-    const { data: tecnicos } = await supabase
-      .from("perfiles")
-      .select("id, nombre_completo, run, email")
-      .eq("rol", "tecnico")
-      .eq("activo", true);
+      const { data: tecnicos, error: tecnicosError } = await supabase
+        .from("perfiles")
+        .select("id, nombre_completo, run, email")
+        .eq("rol", "tecnico")
+        .eq("activo", true);
 
-    if (!ticketsFinalizados || !tecnicos) {
-      setLoading(false);
-      return;
-    }
-
-    const statsMap = new Map<string, TecnicoStats>();
-    tecnicos.forEach((tecnico) => {
-      statsMap.set(tecnico.id, {
-        tecnico_id: tecnico.id,
-        nombre: tecnico.nombre_completo || "Sin nombre",
-        run: tecnico.run || undefined,
-        email: tecnico.email || undefined,
-        tickets_resueltos: 0,
-        tiempo_promedio: 0,
-      });
-    });
-
-    const tiemposPorTecnico: Record<string, number[]> = {};
-    ticketsFinalizados.forEach((ticket) => {
-      if (ticket.asignado_a && statsMap.has(ticket.asignado_a)) {
-        const stat = statsMap.get(ticket.asignado_a)!;
-        stat.tickets_resueltos++;
-        const inicio = new Date(ticket.created_at).getTime();
-        const fin = new Date(ticket.updated_at).getTime();
-        const horas = (fin - inicio) / (1000 * 60 * 60);
-        if (!tiemposPorTecnico[ticket.asignado_a]) {
-          tiemposPorTecnico[ticket.asignado_a] = [];
-        }
-        tiemposPorTecnico[ticket.asignado_a].push(horas);
+      if (ticketsError || tecnicosError) {
+        console.error("Error obteniendo estadísticas:", { ticketsError, tecnicosError });
+        return;
       }
-    });
 
-    const statsArray = Array.from(statsMap.values()).map((stat) => {
-      const tiempos = tiemposPorTecnico[stat.tecnico_id] || [];
-      const promedio =
-        tiempos.length > 0
-          ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length
-          : 0;
-      return { ...stat, tiempo_promedio: promedio };
-    });
+      if (!ticketsFinalizados || !tecnicos) {
+        return;
+      }
 
-    statsArray.sort((a, b) => b.tickets_resueltos - a.tickets_resueltos);
-    setStats(statsArray);
+      const statsMap = new Map<string, TecnicoStats>();
+      tecnicos.forEach((tecnico) => {
+        statsMap.set(tecnico.id, {
+          tecnico_id: tecnico.id,
+          nombre: tecnico.nombre_completo || "Sin nombre",
+          run: tecnico.run || undefined,
+          email: tecnico.email || undefined,
+          tickets_resueltos: 0,
+          tiempo_promedio: 0,
+        });
+      });
+
+      const tiemposPorTecnico: Record<string, number[]> = {};
+      ticketsFinalizados.forEach((ticket) => {
+        if (ticket.asignado_a && statsMap.has(ticket.asignado_a)) {
+          const stat = statsMap.get(ticket.asignado_a)!;
+          stat.tickets_resueltos++;
+          const inicio = new Date(ticket.created_at).getTime();
+          const fin = new Date(ticket.updated_at).getTime();
+          const horas = (fin - inicio) / (1000 * 60 * 60);
+          if (!tiemposPorTecnico[ticket.asignado_a]) {
+            tiemposPorTecnico[ticket.asignado_a] = [];
+          }
+          tiemposPorTecnico[ticket.asignado_a].push(horas);
+        }
+      });
+
+      const statsArray = Array.from(statsMap.values()).map((stat) => {
+        const tiempos = tiemposPorTecnico[stat.tecnico_id] || [];
+        const promedio =
+          tiempos.length > 0
+            ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length
+            : 0;
+        return { ...stat, tiempo_promedio: promedio };
+      });
+
+      statsArray.sort((a, b) => b.tickets_resueltos - a.tickets_resueltos);
+      setStats(statsArray);
+    } catch (error) {
+      console.error("Error en fetchStats:", error);
+    }
   };
 
   const fetchTickets = async () => {
-    const { data, error } = await supabase
-      .from("tickets")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from("tickets")
+        .select(`
+          *,
+          tecnico:perfiles!tickets_asignado_a_fkey(nombre_completo, id)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    if (!error) {
-      setTickets(data || []);
+      if (error) {
+        console.error("Error obteniendo tickets:", error);
+      } else {
+        setTickets(data || []);
+      }
+    } catch (error) {
+      console.error("Error en fetchTickets:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchUsuarios = async () => {
@@ -179,57 +204,112 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   };
 
   useEffect(() => {
-    fetchStats();
-    fetchTickets();
-    fetchUsuarios();
+    let mounted = true;
+    let channel: any = null;
 
-    const channel = supabase
-      .channel("admin-tickets")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tickets",
-        },
-        (payload) => {
-          console.log("🔄 Admin: Cambio detectado en tiempo real:", payload);
-          fetchStats();
-          fetchTickets();
+    // Timeout de seguridad para asegurar que el loading se desactive
+    const loadingTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn("Timeout de carga alcanzado, desactivando loading");
+        setLoading(false);
+      }
+    }, 5000); // 5 segundos máximo
+
+    const loadData = async () => {
+      try {
+        // Cargar datos en paralelo pero con manejo de errores individual
+        const promises = [
+          fetchStats().catch(err => console.error("Error en fetchStats:", err)),
+          fetchTickets().catch(err => console.error("Error en fetchTickets:", err)),
+          fetchUsuarios().catch(err => console.error("Error en fetchUsuarios:", err)),
+        ];
+        await Promise.allSettled(promises);
+      } catch (error) {
+        console.error("Error cargando datos iniciales:", error);
+      } finally {
+        if (mounted) {
+          clearTimeout(loadingTimeout);
+          setLoading(false);
         }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reportes",
-        },
-        () => {
-          console.log("🔄 Admin: Nuevo reporte detectado");
-          fetchStats();
-          fetchTickets();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "perfiles",
-        },
-        () => {
-          console.log("🔄 Admin: Cambio en perfiles detectado");
-          fetchUsuarios();
-          fetchStats();
-        }
-      )
-      .subscribe();
+      }
+    };
+
+    loadData();
+
+    // Suscripción a cambios en tiempo real
+    try {
+      channel = supabase
+        .channel("admin-tickets")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "tickets",
+          },
+          (payload: any) => {
+            if (mounted) {
+              console.log("🔄 Admin: Cambio detectado en tiempo real:", payload);
+              fetchStats();
+              fetchTickets();
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "reportes",
+          },
+          () => {
+            if (mounted) {
+              console.log("🔄 Admin: Nuevo reporte detectado");
+              fetchStats();
+              fetchTickets();
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "perfiles",
+          },
+          () => {
+            if (mounted) {
+              console.log("🔄 Admin: Cambio en perfiles detectado");
+              fetchUsuarios();
+              fetchStats();
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            console.log("✅ Suscripción activa");
+          } else if (status === "CHANNEL_ERROR") {
+            console.error("❌ Error en canal de suscripción");
+          }
+        });
+    } catch (error) {
+      console.error("Error suscribiéndose a cambios:", error);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      mounted = false;
+      clearTimeout(loadingTimeout);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (error) {
+          // Ignorar errores al remover el canal si el componente ya se desmontó
+          console.warn("Error al remover canal (ignorado):", error);
+        }
+      }
     };
-  }, [supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Dependencias vacías - solo se ejecuta una vez al montar
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -250,6 +330,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
             <Button variant="outline" onClick={() => setShowConfigApi(true)}>
               <Key className="h-4 w-4 mr-2" />
               Configurar IA
+            </Button>
+            <Button variant="outline" onClick={() => setShowConfigSupabase(true)}>
+              <DatabaseIcon className="h-4 w-4 mr-2" />
+              Configurar Supabase
             </Button>
             <Button variant="outline" onClick={() => setShowAgregarTecnico(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
@@ -337,7 +421,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tickets.map((ticket) => (
                 <div key={ticket.id} className="relative">
-                  <TicketCard 
+                  <TicketCard
                     ticket={ticket}
                     onViewDetail={(ticket) => {
                       // Para admin, podríamos abrir un modal o navegar
@@ -462,19 +546,18 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                             </td>
                             <td className="p-2">
                               <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                  usuario.rol === "admin"
+                                className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "admin"
                                     ? "bg-purple-100 text-purple-800"
                                     : usuario.rol === "ventas"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-green-100 text-green-800"
-                                }`}
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-green-100 text-green-800"
+                                  }`}
                               >
                                 {usuario.rol === "admin"
                                   ? "Administrador"
                                   : usuario.rol === "ventas"
-                                  ? "Ventas"
-                                  : "Técnico"}
+                                    ? "Ventas"
+                                    : "Técnico"}
                               </span>
                             </td>
                             <td className="p-2 text-sm">
@@ -484,11 +567,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                             </td>
                             <td className="p-2">
                               <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                  usuario.activo
+                                className={`px-2 py-1 rounded text-xs font-medium ${usuario.activo
                                     ? "bg-green-100 text-green-800"
                                     : "bg-red-100 text-red-800"
-                                }`}
+                                  }`}
                               >
                                 {usuario.activo ? "Activo" : "Inactivo"}
                               </span>
@@ -533,8 +615,13 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           </TabsContent>
 
           <TabsContent value="configuracion" className="mt-6 space-y-4">
-            <SupabaseStatus />
-            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <SupabaseStatus />
+              <GeminiStatus />
+              <PipedriveStatus />
+              <ResendStatus />
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -567,6 +654,42 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                 <Button onClick={() => setShowConfigPipedrive(true)} variant="outline">
                   <Building2 className="h-4 w-4 mr-2" />
                   Configurar Pipedrive
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DatabaseIcon className="h-5 w-5" />
+                  Configuración de Supabase
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configura la URL y las API keys de tu proyecto de Supabase. Esto te permite cambiar entre diferentes proyectos o actualizar las credenciales.
+                </p>
+                <Button onClick={() => setShowConfigSupabase(true)} variant="outline">
+                  <DatabaseIcon className="h-4 w-4 mr-2" />
+                  Configurar Supabase
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Configuración de Resend
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configura tu API key de Resend para habilitar el envío de emails desde la aplicación. Resend se usa para enviar reportes técnicos y notificaciones por correo electrónico.
+                </p>
+                <Button onClick={() => setShowConfigResend(true)} variant="outline">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Configurar Resend
                 </Button>
               </CardContent>
             </Card>
@@ -617,6 +740,22 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
         }}
       />
 
+      <ConfigSupabaseDialog
+        open={showConfigSupabase}
+        onOpenChange={setShowConfigSupabase}
+        onSuccess={() => {
+          // Recargar si es necesario
+        }}
+      />
+
+      <ConfigResendDialog
+        open={showConfigResend}
+        onOpenChange={setShowConfigResend}
+        onSuccess={() => {
+          // Recargar si es necesario
+        }}
+      />
+
       <PersonalizacionDialog
         open={showPersonalizacion}
         onOpenChange={setShowPersonalizacion}
@@ -631,8 +770,8 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
             usuarioParaEliminar.rol === "admin"
               ? "Administrador"
               : usuarioParaEliminar.rol === "ventas"
-              ? "Ventas"
-              : "Técnico"
+                ? "Ventas"
+                : "Técnico"
           }
           onConfirm={handleEliminarUsuario}
           loading={eliminando}

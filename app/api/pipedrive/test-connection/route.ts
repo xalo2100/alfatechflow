@@ -1,6 +1,108 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipedriveApiKey, getPipedriveDomain } from "@/lib/pipedrive";
 
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Obtener las credenciales guardadas
+    let apiKey: string;
+    let domain: string;
+    
+    try {
+      apiKey = await getPipedriveApiKey();
+      domain = await getPipedriveDomain();
+    } catch (error: any) {
+      // Si hay un error al obtener las credenciales, intentar con variables de entorno
+      console.warn("⚠️ Error obteniendo configuración de Pipedrive desde DB, intentando con variables de entorno:", error.message);
+      
+      // Intentar con variables de entorno como fallback
+      apiKey = process.env.PIPEDRIVE_API_KEY || "";
+      domain = process.env.PIPEDRIVE_DOMAIN || "";
+      
+      if (!apiKey || !domain) {
+        // Si hay un error de permisos y no hay variables de entorno, retornar mensaje claro
+        if (error.message?.includes("permisos") || error.message?.includes("acceder a la configuración")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "No se puede acceder a la configuración de Pipedrive y no hay variables de entorno configuradas.\n\nSolución:\n1. Agrega PIPEDRIVE_API_KEY y PIPEDRIVE_DOMAIN en .env.local\n2. O verifica que la SERVICE_ROLE_KEY esté configurada correctamente\n3. O configura las API keys desde el panel de administración",
+            },
+            { status: 500 }
+          );
+        }
+        throw error;
+      }
+      
+      console.log("✅ Usando credenciales de Pipedrive desde variables de entorno");
+    }
+
+    if (!apiKey || !domain) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "API key y dominio de Pipedrive no configurados. Por favor, configúralos en el panel de administración.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Hacer una llamada de prueba a la API de Pipedrive
+    const testUrl = `https://${domain}.pipedrive.com/api/v1/users/me?api_token=${apiKey}`;
+
+    const response = await fetch(testUrl);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = "Error al conectar con Pipedrive";
+
+      if (response.status === 401) {
+        errorMessage = "API key inválida. Verifica que sea correcta.";
+      } else if (response.status === 404) {
+        errorMessage = "Dominio no encontrado. Verifica que el dominio sea correcto.";
+      } else {
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Error ${response.status}: ${response.statusText}`;
+        }
+      }
+
+      return NextResponse.json(
+        { success: false, error: errorMessage, status: response.status },
+        { status: 400 }
+      );
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      return NextResponse.json(
+        { success: false, error: data.error || "Error desconocido en la respuesta de Pipedrive" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Conexión con Pipedrive exitosa",
+      domain: domain,
+      user: data.data?.name || "Usuario",
+      email: data.data?.email || "N/A",
+    });
+  } catch (error: any) {
+    console.error("Error probando conexión con Pipedrive:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Error al probar la conexión. Verifica que el dominio y la API key sean correctos.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

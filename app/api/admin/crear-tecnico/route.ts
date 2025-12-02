@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const runFormateado = run.replace(/-/g, "").toUpperCase();
 
     // Crear cliente de administración
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
 
     // Verificar que el RUN no esté en uso
     const { data: runExistente } = await adminClient

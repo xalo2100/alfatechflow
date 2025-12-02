@@ -1,22 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import dynamic from "next/dynamic";
-
-// Importar dinámicamente para evitar errores de hidratación
-const AdminCompleto = dynamic(
-  () => import("@/components/admin/admin-completo").then((mod) => ({ default: mod.AdminCompleto })),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando panel de administración...</p>
-        </div>
-      </div>
-    )
-  }
-);
+import { AdminCompleto } from "@/components/admin/admin-completo";
 
 export default async function AdminPage() {
   const supabase = await createClient();

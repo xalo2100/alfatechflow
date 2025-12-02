@@ -11,8 +11,7 @@ export async function generarReporteTecnicoAlfapack(notas: string) {
     // 3. INICIALIZACIÓN DE GEMINI
     const genAI = new GoogleGenerativeAI(apiKey);
     // Usamos el modelo flash que es más rápido y barato
-    // Usamos el modelo clásico gemini-pro que siempre funciona
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-03-25" });
 
     // 4. EL PROMPT DE INGENIERÍA (Ajustado a tu reporte Alfapack)
     const prompt = `
@@ -32,7 +31,7 @@ export async function generarReporteTecnicoAlfapack(notas: string) {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     // 5. LIMPIEZA Y PARSEO (Crítico para evitar errores de formato)
     const jsonString = text.replace(/```json|```/g, '').trim();
     const data = JSON.parse(jsonString);

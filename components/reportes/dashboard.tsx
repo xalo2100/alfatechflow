@@ -82,7 +82,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
         (payload) => {
           console.log("🔄 Cambio detectado en reportes:", payload);
           setRealtimeStatus("connected");
-          
+
           // Si se actualizó un reporte, verificar si fue por lectura de email
           if (payload.eventType === "UPDATE" && payload.new) {
             try {
@@ -101,7 +101,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
               // Ignorar errores de parsing
             }
           }
-          
+
           fetchReportes();
         }
       )
@@ -361,7 +361,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
 
       // Encontrar todas las secciones
       const todasLasSecciones = Array.from(body.querySelectorAll('.section'));
-      
+
       // Si no hay secciones, usar el HTML completo
       if (todasLasSecciones.length === 0) {
         console.warn('No se encontraron secciones, usando HTML completo');
@@ -370,39 +370,39 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
         const docCompleto = parserCompleto.parseFromString(htmlCompleto, 'text/html');
         const bodyCompleto = docCompleto.body;
         const estilosCompleto = docCompleto.querySelector('style')?.outerHTML || '';
-        
+
         if (!bodyCompleto) {
           throw new Error('Error: No se pudo parsear el HTML del reporte');
         }
-        
+
         const htmlCompletoLimpio = `<div style="width: 680px; background: white; font-family: Arial, sans-serif;">${estilosCompleto}${bodyCompleto.innerHTML}</div>`;
-        
+
         const paginaCompleta = await generarPaginaDesdeHTML(htmlCompletoLimpio);
         if (!paginaCompleta || !paginaCompleta.imgData) {
           throw new Error('Error generando PDF completo');
         }
         let heightLeft = paginaCompleta.height;
         let yPosition = marginTop;
-        
+
         pdf.addImage(paginaCompleta.imgData, 'PNG', marginLeft, yPosition, paginaCompleta.width, paginaCompleta.height);
         heightLeft -= contentHeight;
-        
+
         while (heightLeft > 0) {
           yPosition = marginTop - (paginaCompleta.height - heightLeft);
           pdf.addPage();
           pdf.addImage(paginaCompleta.imgData, 'PNG', marginLeft, yPosition, paginaCompleta.width, paginaCompleta.height);
           heightLeft -= contentHeight;
         }
-        
+
         const fileName = `Reporte_Tecnico_${reporte.ticket_id}_${format(new Date(reporte.created_at), 'yyyy-MM-dd', { locale: es })}.pdf`;
         pdf.save(fileName);
         return;
       }
-      
+
       // Encontrar índices de las secciones clave
       let indiceTipoServicio = -1;
       let indiceTiempos = -1;
-      
+
       todasLasSecciones.forEach((section, index) => {
         const title = section.querySelector('.section-title')?.textContent || '';
         if (title.includes('TIPO DE SERVICIO')) {
@@ -481,7 +481,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
 <div style="text-align: center; margin-top: 30px; font-size: 10px; color: #999;">
   <strong style="color: #000;">ORIGINAL: CLIENTE</strong> | 1ª COPIA: SERVICIO TÉCNICO
 </div>`;
-        
+
         const htmlPagina3 = `
 <!DOCTYPE html>
 <html>
@@ -506,14 +506,14 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
         }
         console.log('Página 3 generada, dimensiones:', pagina3.width, 'x', pagina3.height);
         pdf.addPage();
-        
+
         // Agregar la imagen completa
         let heightLeft = pagina3.height;
         let yPosition = marginTop;
-        
+
         pdf.addImage(pagina3.imgData, 'PNG', marginLeft, yPosition, pagina3.width, pagina3.height);
         heightLeft -= contentHeight;
-        
+
         // Agregar páginas adicionales si es necesario
         while (heightLeft > 0) {
           yPosition = marginTop - (pagina3.height - heightLeft);
@@ -526,7 +526,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       // ===== COPIAS ADICIONALES =====
       // Página 4-6: 1ª COPIA (SERVICIO TÉCNICO) - Duplicar páginas 1-3
       console.log('Generando copias adicionales...');
-      
+
       // Página 4: Duplicar página 1
       pdf.addPage();
       pdf.addImage(pagina1.imgData, 'PNG', marginLeft, marginTop, pagina1.width, pagina1.height);
@@ -546,7 +546,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
 <div style="text-align: center; margin-top: 30px; font-size: 10px; color: #999;">
   ORIGINAL: CLIENTE | <strong style="color: #000;">1ª COPIA: SERVICIO TÉCNICO</strong>
 </div>`;
-        
+
         const htmlPagina3Copia1 = `
 <!DOCTYPE html>
 <html>
@@ -568,10 +568,10 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
           pdf.addPage();
           let heightLeft = pagina3Copia1.height;
           let yPosition = marginTop;
-          
+
           pdf.addImage(pagina3Copia1.imgData, 'PNG', marginLeft, yPosition, pagina3Copia1.width, pagina3Copia1.height);
           heightLeft -= contentHeight;
-          
+
           while (heightLeft > 0) {
             yPosition = marginTop - (pagina3Copia1.height - heightLeft);
             pdf.addPage();
@@ -601,9 +601,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       }
 
       // Obtener número de celular del cliente
-      const celular = reporteData.celular || 
-                     (reporte.ticket?.datos_cliente as any)?.celular || 
-                     "";
+      const celular = reporteData.celular || "";
 
       if (!celular || celular.trim() === "") {
         alert("⚠️ No se encontró número de celular del cliente. Por favor, agregue el número en los datos del reporte.");
@@ -613,11 +611,11 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       // Limpiar número (quitar espacios, guiones, paréntesis)
       const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
       // Asegurar que empiece con código de país (Chile: +56)
-      const numeroFormateado = numeroLimpio.startsWith("56") 
-        ? `+${numeroLimpio}` 
+      const numeroFormateado = numeroLimpio.startsWith("56")
+        ? `+${numeroLimpio}`
         : numeroLimpio.startsWith("+56")
-        ? numeroLimpio
-        : `+56${numeroLimpio}`;
+          ? numeroLimpio
+          : `+56${numeroLimpio}`;
 
       // Mostrar mensaje de carga
       const mensajeCarga = "Generando PDF y preparando para WhatsApp...";
@@ -626,21 +624,21 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       // Generar el PDF y obtenerlo como Blob
       // Por ahora, descargarlo primero y luego permitir que el usuario lo envíe
       // En una versión futura se puede subir automáticamente
-      
+
       // Mensaje para WhatsApp
       const clienteNombre = reporteData.razon_social || reporte.ticket?.cliente_nombre || "Cliente";
       const mensaje = `Hola! Te envío el Reporte Técnico N° ${reporte.ticket_id} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
-      
+
       // Crear enlace de WhatsApp
       const mensajeCodificado = encodeURIComponent(mensaje);
       const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
-      
+
       // Abrir WhatsApp
       window.open(whatsappUrl, "_blank");
-      
+
       // Descargar el PDF automáticamente para que el usuario lo pueda adjuntar
       await descargarReportePDF(reporte);
-      
+
       // Mensaje final
       setTimeout(() => {
         alert("✅ WhatsApp abierto. El PDF se descargó automáticamente. Por favor, adjunta el PDF en la conversación de WhatsApp.");
@@ -674,10 +672,10 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
 
   const generarHTMLReporte = (reporte: ReporteConTicket, reporteData: any) => {
     const appConfig = getAppConfig();
-    const logoHTML = appConfig?.logo 
+    const logoHTML = appConfig?.logo
       ? `<img src="${appConfig.logo}" alt="Logo" style="max-height: 60px; margin-bottom: 10px;" />`
       : `<div class="logo">${appConfig?.nombre || "α pack - Alfapack SpA"}</div>`;
-    
+
     return `
 <!DOCTYPE html>
 <html>
@@ -918,13 +916,13 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
   <div class="section page-break-before">
     <div class="section-title">TIPO DE SERVICIO</div>
     <div class="info-grid">
-      ${Array.isArray(reporteData.tipo_servicio) 
-        ? reporteData.tipo_servicio.map((tipo: string) => `
+      ${Array.isArray(reporteData.tipo_servicio)
+          ? reporteData.tipo_servicio.map((tipo: string) => `
           <div class="info-item">
             <div class="info-value">${tipo.replace(/_/g, " ").toUpperCase()}</div>
           </div>
         `).join("")
-        : `<div class="info-item"><div class="info-value">${String(reporteData.tipo_servicio).replace(/_/g, " ").toUpperCase()}</div></div>`}
+          : `<div class="info-item"><div class="info-value">${String(reporteData.tipo_servicio).replace(/_/g, " ").toUpperCase()}</div></div>`}
     </div>
   </div>
   ` : ""}
@@ -1059,10 +1057,11 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
     <div className="min-h-screen bg-gray-50">
       <Navbar rol={perfil.rol} nombre={perfil.nombre_completo} />
       <div className="container mx-auto px-4 py-8">
+        {/* Botón Volver - Siempre visible */}
         <div className="mb-6">
           <Button
-            variant="ghost"
-            size="sm"
+            variant="outline"
+            size="default"
             onClick={() => {
               if (perfil.rol === "admin") {
                 router.push("/admin");
@@ -1072,7 +1071,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
                 router.push("/");
               }
             }}
-            className="flex items-center gap-2 mb-4"
+            className="flex items-center gap-2 mb-4 hover:bg-primary hover:text-primary-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver
@@ -1086,9 +1085,8 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
                 </p>
                 <div className="flex items-center gap-1 text-xs">
                   <Radio
-                    className={`h-3 w-3 ${
-                      realtimeStatus === "connected" ? "text-green-500" : "text-red-500"
-                    }`}
+                    className={`h-3 w-3 ${realtimeStatus === "connected" ? "text-green-500" : "text-red-500"
+                      }`}
                   />
                   <span
                     className={

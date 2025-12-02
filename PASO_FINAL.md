@@ -36,3 +36,7 @@ git push -u origin main
 
 Después de esto, Vercel debería funcionar correctamente.
 
+
+
+
+

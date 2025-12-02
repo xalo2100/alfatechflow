@@ -61,7 +61,7 @@ export function CambiarContraseñaDialog({
     }
 
     try {
-      const response = await fetch("/api/admin/cambiar-contraseña", {
+      const response = await fetch("/api/admin/cambiar-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -73,7 +73,33 @@ export function CambiarContraseñaDialog({
         }),
       });
 
-      const result = await response.json();
+      // Primero obtener el texto de la respuesta para verificar el tipo
+      const responseText = await response.text();
+      
+      // Verificar que la respuesta sea JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Error: La respuesta no es JSON. Status:", response.status);
+        console.error("Content-Type:", contentType);
+        console.error("Respuesta recibida:", responseText.substring(0, 500));
+        
+        // Si es HTML, probablemente es una página de error 404/500
+        if (responseText.trim().startsWith("<!DOCTYPE") || responseText.trim().startsWith("<!doctype")) {
+          throw new Error("La ruta de la API no fue encontrada. Por favor, contacta al administrador o verifica que el servidor esté funcionando correctamente.");
+        }
+        
+        throw new Error("Error en la respuesta del servidor. Por favor, intenta de nuevo.");
+      }
+
+      // Parsear el JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parseando JSON:", parseError);
+        console.error("Respuesta recibida:", responseText);
+        throw new Error("Error en la respuesta del servidor. La respuesta no es un JSON válido.");
+      }
 
       if (!response.ok) {
         throw new Error(result.error || "Error al cambiar la contraseña");

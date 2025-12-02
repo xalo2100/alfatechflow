@@ -26,10 +26,17 @@ interface SendEmailResponse {
 export async function sendEmail(options: EmailOptions): Promise<SendEmailResponse> {
   const { to, subject, html, from = 'Soporte Técnico Alfapack <soportetecnico@alfapack.cl>' } = options;
 
-  const apiKey = process.env.RESEND_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('RESEND_API_KEY no está configurada en .env.local');
+  // Intentar obtener la API key desde la base de datos primero, luego desde variables de entorno
+  let apiKey: string;
+  try {
+    const { getResendApiKey } = await import("@/lib/resend");
+    apiKey = await getResendApiKey();
+  } catch (error: any) {
+    // Si falla, usar variable de entorno como fallback
+    apiKey = process.env.RESEND_API_KEY || "";
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY no está configurada. Por favor, configúrala en el panel de administración o en .env.local');
+    }
   }
 
   try {

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
 async function obtenerConfiguracionApp() {
   try {
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
     const { data: configNombre } = await adminClient
       .from("configuraciones")
       .select("valor")

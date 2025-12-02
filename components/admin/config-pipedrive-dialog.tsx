@@ -81,7 +81,7 @@ export function ConfigPipedriveDialog({
   const probarConexion = async () => {
     const cleanedKey = apiKey.trim().replace(/\s+/g, "").replace(/\n/g, "");
     let cleanedDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\.pipedrive\.com$/, "");
-    
+
     if (!cleanedKey) {
       setResultadoPrueba({ success: false, message: "Por favor, ingresa la API key primero" });
       return;
@@ -94,9 +94,9 @@ export function ConfigPipedriveDialog({
 
     // Validar que no sea un email
     if (cleanedDomain.includes("@")) {
-      setResultadoPrueba({ 
-        success: false, 
-        message: "❌ Error: Has ingresado un email. El dominio debe ser solo el nombre (ej: 'alfapack' si tu URL es 'https://alfapack.pipedrive.com')" 
+      setResultadoPrueba({
+        success: false,
+        message: "❌ Error: Has ingresado un email. El dominio debe ser solo el nombre (ej: 'alfapack' si tu URL es 'https://alfapack.pipedrive.com')"
       });
       return;
     }
@@ -149,10 +149,10 @@ export function ConfigPipedriveDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const cleanedKey = apiKey.trim().replace(/\s+/g, "").replace(/\n/g, "");
     let cleanedDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\.pipedrive\.com$/, "");
-    
+
     if (!cleanedKey) {
       setError("La API key es requerida");
       return;
@@ -244,11 +244,22 @@ export function ConfigPipedriveDialog({
       setApiKey("");
       setDomain("");
       setError("");
-      onOpenChange(false);
-      onSuccess();
-      alert("✅ Configuración de Pipedrive guardada exitosamente!");
+
+      // Mostrar mensaje de éxito ANTES de cerrar
+      setResultadoPrueba({
+        success: true,
+        message: "✅ Configuración de Pipedrive guardada exitosamente!"
+      });
+
+      // Esperar un momento para que el usuario vea el mensaje
+      setTimeout(() => {
+        onOpenChange(false);
+        onSuccess();
+      }, 1500);
     } catch (error: any) {
       console.error("Error guardando configuración:", error);
+      // NO cerrar el diálogo en caso de error
+      // El error se mostrará en el componente y el usuario puede intentar de nuevo
       setError(error.message || "Error al guardar la configuración. Verifica tu conexión a internet.");
     } finally {
       setLoading(false);
@@ -381,11 +392,10 @@ export function ConfigPipedriveDialog({
               {/* Mostrar resultado de la prueba */}
               {resultadoPrueba && (
                 <div
-                  className={`text-sm p-3 rounded-md ${
-                    resultadoPrueba.success
+                  className={`text-sm p-3 rounded-md ${resultadoPrueba.success
                       ? "bg-green-50 text-green-800 border border-green-200"
                       : "bg-red-50 text-red-800 border border-red-200"
-                  }`}
+                    }`}
                 >
                   {resultadoPrueba.message}
                 </div>

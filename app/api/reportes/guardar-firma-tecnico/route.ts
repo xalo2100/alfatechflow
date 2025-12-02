@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear cliente de administración
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
 
     // Obtener el reporte actual
     const { data: reporte, error: reporteError } = await adminClient
@@ -121,4 +121,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

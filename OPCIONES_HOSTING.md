@@ -118,3 +118,7 @@ R: Es gratis para proyectos personales. Solo pagas si tienes mucho tráfico (mil
 **P: ¿Puedo usar mi dominio personal?**
 R: Sí, en Vercel puedes usar tu dominio personal gratis.
 
+
+
+
+

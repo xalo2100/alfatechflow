@@ -114,18 +114,18 @@ export function TicketCard({ ticket, onViewDetail, onRequestUrgent }: TicketCard
             <p className="text-sm">{ticket.cliente_contacto}</p>
           </div>
         )}
+        {ticket.dispositivo_modelo && (
+          <div>
+            <p className="font-semibold text-sm text-muted-foreground">Equipo/Producto</p>
+            <p className="text-sm">{ticket.dispositivo_modelo}</p>
+          </div>
+        )}
         {(ticket as any).tecnico && (
           <div>
             <p className="font-semibold text-sm text-muted-foreground">Técnico Asignado</p>
-            <p className="text-sm font-medium text-blue-600">{(ticket as any).tecnico.nombre_completo}</p>
+            <p className="text-sm font-medium" style={{ color: "#f97316" }}>{(ticket as any).tecnico.nombre_completo}</p>
           </div>
         )}
-                  {ticket.dispositivo_modelo && (
-                    <div>
-                      <p className="font-semibold text-sm text-muted-foreground">Equipo/Producto</p>
-                      <p className="text-sm">{ticket.dispositivo_modelo}</p>
-                    </div>
-                  )}
                   <div>
                     <p className="font-semibold text-sm text-muted-foreground">Problema/Solicitud</p>
                     <p className="text-sm line-clamp-2">{ticket.falla_declarada}</p>

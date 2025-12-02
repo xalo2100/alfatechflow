@@ -71,7 +71,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Crear cliente de administración
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
 
     // Verificar que el usuario existe
     const { data: usuarioExistente } = await adminClient

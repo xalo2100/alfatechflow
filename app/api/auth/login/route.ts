@@ -23,39 +23,52 @@ export async function POST(request: NextRequest) {
     // Si es RUN, buscar el email asociado
     if (isRUN) {
       const runFormateado = cleanedIdentifier.toUpperCase();
-      const adminClient = createAdminClient();
 
-      // Buscar perfil por RUN
-      const { data: perfil, error: perfilError } = await adminClient
+      // Crear cliente de Supabase (usando anon key)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        return NextResponse.json(
+          { error: "Configuración de Supabase no encontrada" },
+          { status: 500 }
+        );
+      }
+
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Buscar perfil por RUN (la tabla perfiles debe tener RLS que permita SELECT público)
+      const { data: perfil, error: perfilError } = await supabase
         .from("perfiles")
         .select("id, email, nombre_completo, rol")
         .eq("run", runFormateado)
         .eq("rol", "tecnico")
-        .single();
+        .maybeSingle();
 
-      if (perfilError || !perfil) {
+      if (perfilError) {
+        console.error("Error buscando perfil por RUN:", perfilError);
+        return NextResponse.json(
+          { error: "Error al buscar RUN en el sistema. Verifica que las políticas RLS permitan lectura pública de la tabla perfiles." },
+          { status: 500 }
+        );
+      }
+
+      if (!perfil) {
         return NextResponse.json(
           { error: "RUN no encontrado en el sistema" },
           { status: 404 }
         );
       }
 
-      // Si el perfil no tiene email, buscar el email en auth.users
+      // Usar el email del perfil
       if (!perfil.email) {
-        // Obtener el email del usuario de auth.users usando el ID
-        const { data: authUser, error: authError } = await adminClient.auth.admin.getUserById(perfil.id);
-        
-        if (authError || !authUser?.user?.email) {
-          return NextResponse.json(
-            { error: "No se encontró email asociado a este RUN. Contacta al administrador." },
-            { status: 404 }
-          );
-        }
-        
-        emailToUse = authUser.user.email;
-      } else {
-        emailToUse = perfil.email;
+        return NextResponse.json(
+          { error: "Este RUN no tiene email asociado. Contacta al administrador." },
+          { status: 404 }
+        );
       }
+
+      emailToUse = perfil.email;
     }
 
     // Crear cliente de Supabase para autenticación (usando anon key)
@@ -88,34 +101,34 @@ export async function POST(request: NextRequest) {
     // Usar el cliente con la sesión del usuario autenticado para evitar problemas de RLS
     let perfil: any = null;
     let perfilError: any = null;
-    
+
     // Crear cliente con la sesión del usuario autenticado
     const supabaseWithSession = createClient(supabaseUrl, supabaseKey);
     await supabaseWithSession.auth.setSession({
       access_token: authData.session.access_token,
       refresh_token: authData.session.refresh_token,
     });
-    
+
     // Intentar obtener perfil con el cliente autenticado
     const result = await supabaseWithSession
       .from("perfiles")
       .select("rol, nombre_completo")
       .eq("id", authData.user.id)
       .maybeSingle();
-    
+
     perfil = result.data;
     perfilError = result.error;
-    
+
     // Si falla, intentar con adminClient como fallback
     if (perfilError || !perfil) {
       try {
-        const adminClient = createAdminClient();
+        const adminClient = await createAdminClient();
         const adminResult = await adminClient
           .from("perfiles")
           .select("rol, nombre_completo")
           .eq("id", authData.user.id)
           .maybeSingle();
-        
+
         if (adminResult.data) {
           perfil = adminResult.data;
           perfilError = null;
@@ -131,7 +144,7 @@ export async function POST(request: NextRequest) {
       console.error("User ID:", authData.user.id);
       console.error("User Email:", authData.user.email);
       return NextResponse.json(
-        { 
+        {
           error: "Usuario sin perfil asignado. Contacta al administrador.",
           details: perfilError.message,
           user_id: authData.user.id
@@ -143,27 +156,27 @@ export async function POST(request: NextRequest) {
     if (!perfil) {
       console.error("❌ Perfil no encontrado para usuario:", authData.user.id);
       console.error("📧 Email del usuario:", authData.user.email);
-      
+
       // Intentar buscar por email como último recurso
       try {
-        const adminClient = createAdminClient();
+        const adminClient = await createAdminClient();
         const resultByEmail = await adminClient
           .from("perfiles")
           .select("rol, nombre_completo, id")
           .eq("email", authData.user.email || emailToUse)
           .maybeSingle();
-        
+
         if (resultByEmail.data) {
           console.log("✅ Perfil encontrado por email, pero UUID no coincide");
           console.log("🔍 UUID en perfiles:", resultByEmail.data.id);
           console.log("🔍 UUID en auth.users:", authData.user.id);
-          
+
           // Si el UUID no coincide, actualizar el perfil con el UUID correcto
           const { error: updateError } = await adminClient
             .from("perfiles")
             .update({ id: authData.user.id })
             .eq("id", resultByEmail.data.id);
-          
+
           if (updateError) {
             // Si no se puede actualizar, intentar crear uno nuevo
             const { error: insertError } = await adminClient
@@ -175,10 +188,10 @@ export async function POST(request: NextRequest) {
                 rol: resultByEmail.data.rol || "admin",
                 activo: true,
               });
-            
+
             if (insertError) {
               return NextResponse.json(
-                { 
+                {
                   error: "El UUID del perfil no coincide. Ejecuta este SQL en Supabase:\n\nUPDATE perfiles SET id = '" + authData.user.id + "' WHERE email = '" + (authData.user.email || emailToUse) + "';\n\nO elimina el perfil viejo y crea uno nuevo con el UUID correcto.",
                   user_id: authData.user.id,
                   perfil_id: resultByEmail.data.id
@@ -186,7 +199,7 @@ export async function POST(request: NextRequest) {
                 { status: 403 }
               );
             }
-            
+
             // Si se creó exitosamente, usar ese perfil
             perfil = {
               rol: resultByEmail.data.rol || "admin",
@@ -199,18 +212,18 @@ export async function POST(request: NextRequest) {
               .select("rol, nombre_completo")
               .eq("id", authData.user.id)
               .maybeSingle();
-            
+
             perfil = resultUpdated.data;
           }
         }
       } catch (e: any) {
         console.error("Error en búsqueda/actualización por email:", e);
       }
-      
+
       // Si después de todo esto aún no hay perfil, retornar error
       if (!perfil) {
         return NextResponse.json(
-          { 
+          {
             error: "Usuario sin perfil asignado. Contacta al administrador.",
             user_id: authData.user.id,
             user_email: authData.user.email,

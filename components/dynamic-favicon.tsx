@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAppConfig } from "@/lib/app-config";
+import { getAppConfig, type AppConfig } from "@/lib/app-config";
 
 /**
  * Componente que actualiza el favicon dinámicamente según la configuración de la app
@@ -23,7 +23,7 @@ export function DynamicFavicon() {
 
     // Obtener o crear el elemento link del favicon
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    
+
     if (!link) {
       // Si no existe, crear uno nuevo
       link = document.createElement("link");
@@ -51,7 +51,7 @@ export function DynamicFavicon() {
 
     // Escuchar cambios en localStorage
     window.addEventListener("storage", handleStorageChange);
-    
+
     // También escuchar cambios locales (mismo tab)
     const interval = setInterval(() => {
       const config = getAppConfig();
@@ -68,5 +68,6 @@ export function DynamicFavicon() {
 
   return null;
 }
+
 
 

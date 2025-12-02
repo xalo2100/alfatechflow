@@ -112,3 +112,7 @@ Tu aplicación estará corriendo en Vercel. Cada vez que hagas un cambio y lo su
 - Verifica que todas las variables de entorno estén configuradas
 - Revisa los logs en Vercel para ver el error específico
 
+
+
+
+

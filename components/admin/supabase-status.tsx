@@ -135,81 +135,74 @@ export function SupabaseStatus() {
   }, []);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            <CardTitle>Estado de Conexión a Supabase</CardTitle>
+            <CardTitle className="text-lg">Supabase</CardTitle>
           </div>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={checkConnection}
             disabled={checking || loading}
+            className="h-8 w-8 p-0"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${checking ? "animate-spin" : ""}`} />
-            Verificar
+            <RefreshCw className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col space-y-3">
         {loading || checking ? (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{status.message}</span>
+            <span className="text-sm">{status.message}</span>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
+          <>
+            <div className="flex items-center justify-between">
               {status.connected ? (
-                <>
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    Conectado
-                  </Badge>
-                </>
+                <Badge className="bg-green-500 hover:bg-green-600">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Conectado
+                </Badge>
               ) : (
-                <>
-                  <XCircle className="h-5 w-5 text-red-500" />
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                    Desconectado
-                  </Badge>
-                </>
+                <Badge variant="destructive">
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Desconectado
+                </Badge>
               )}
-              <span className="text-sm font-medium">{status.message}</span>
             </div>
 
-            {status.details && (
-              <div className="space-y-2 text-sm">
-                {status.details.url && (
-                  <div>
-                    <span className="text-muted-foreground">URL: </span>
-                    <code className="text-xs bg-muted px-2 py-1 rounded">{status.details.url}</code>
-                  </div>
-                )}
+            <div className="space-y-2 text-sm flex-1">
+              <p className="text-xs text-muted-foreground line-clamp-2">{status.message}</p>
 
-                {status.details.tables && status.details.tables.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Tablas accesibles: </span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {status.details.tables.map((table) => (
-                        <Badge key={table} variant="secondary" className="text-xs">
-                          {table}
-                        </Badge>
-                      ))}
-                    </div>
+              {status.details?.tables && status.details.tables.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground mb-1">Tablas accesibles</p>
+                  <div className="flex flex-wrap gap-1">
+                    {status.details.tables.slice(0, 4).map((table) => (
+                      <Badge key={table} variant="secondary" className="text-xs">
+                        {table}
+                      </Badge>
+                    ))}
+                    {status.details.tables.length > 4 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{status.details.tables.length - 4}
+                      </Badge>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
 
-                {status.details.error && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-destructive text-xs">
-                    <strong>Error:</strong> {status.details.error}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              {status.details?.error && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-2 text-destructive text-xs mt-2 line-clamp-3">
+                  <strong>Error:</strong> {status.details.error}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

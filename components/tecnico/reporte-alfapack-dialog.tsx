@@ -16,8 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, FileText, Eye, X, Pen, Mail, Save } from "lucide-react";
+import { Loader2, Sparkles, FileText, Eye, X, Pen, Mail, Save, MessageCircle } from "lucide-react";
 import { FirmaClienteDialog } from "@/components/reportes/firma-cliente-dialog";
+import { FirmaTecnicoDialog } from "@/components/reportes/firma-tecnico-dialog";
 import { BuscarClientePipedrive } from "@/components/pipedrive/buscar-cliente";
 import {
   Select,
@@ -66,6 +67,28 @@ export function ReporteAlfapackDialog({
   const [reporteGuardadoId, setReporteGuardadoId] = useState<number | null>(null);
   const [mostrarFirmaDialog, setMostrarFirmaDialog] = useState(false);
   const [firmaCliente, setFirmaCliente] = useState<{ imagen: string; nombre: string; fecha: string } | null>(null);
+  const [mostrarFirmaTecnicoDialog, setMostrarFirmaTecnicoDialog] = useState(false);
+  const [firmaTecnico, setFirmaTecnico] = useState<{ imagen: string; nombre: string; fecha: string } | null>(null);
+  const [tecnicoNombre, setTecnicoNombre] = useState<string>("");
+  
+  // Obtener nombre del técnico
+  useEffect(() => {
+    const obtenerNombreTecnico = async () => {
+      if (tecnicoId) {
+        const { data } = await supabase
+          .from("perfiles")
+          .select("nombre_completo")
+          .eq("id", tecnicoId)
+          .single();
+        if (data?.nombre_completo) {
+          setTecnicoNombre(data.nombre_completo);
+        }
+      }
+    };
+    if (open && tecnicoId) {
+      obtenerNombreTecnico();
+    }
+  }, [open, tecnicoId]);
   
   useEffect(() => {
     // Cargar configuración al montar el componente
@@ -427,6 +450,8 @@ export function ReporteAlfapackDialog({
         tiempo_regreso: formData.tiempo_regreso,
         // Firma del cliente (si existe)
         firma_cliente: firmaCliente || null,
+        // Firma del técnico (si existe)
+        firma_tecnico: firmaTecnico || null,
       };
 
       const { data: reporteInsertado, error } = await supabase.from("reportes").insert({
@@ -522,6 +547,76 @@ export function ReporteAlfapackDialog({
   // Función para guardar y enviar email
   const guardarYEnviarReporte = async () => {
     await guardarReporte(true);
+  };
+
+  // Función para enviar reporte por WhatsApp (solo después de guardar)
+  const enviarPorWhatsApp = async () => {
+    if (!reporteGuardadoId) {
+      alert("⚠️ Primero debes guardar el reporte antes de enviarlo por WhatsApp.");
+      return;
+    }
+
+    try {
+      // Obtener datos del reporte guardado
+      const { data: reporte, error } = await supabase
+        .from("reportes")
+        .select(`
+          *,
+          ticket:tickets(*)
+        `)
+        .eq("id", reporteGuardadoId)
+        .single();
+
+      if (error || !reporte) {
+        throw new Error("No se pudo obtener el reporte guardado");
+      }
+
+      // Obtener número de celular del cliente
+      let reporteData: any = {};
+      try {
+        reporteData = JSON.parse(reporte.reporte_ia as string);
+      } catch {
+        reporteData = {};
+      }
+
+      const celular = reporteData.celular || 
+                     formData.celular || 
+                     (reporte.ticket as any)?.datos_cliente?.celular || 
+                     "";
+
+      if (!celular || celular.trim() === "") {
+        alert("⚠️ No se encontró número de celular del cliente. Por favor, agrega el número en los datos del cliente.");
+        return;
+      }
+
+      // Limpiar número (quitar espacios, guiones, paréntesis)
+      const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
+      // Asegurar que empiece con código de país (Chile: +56)
+      const numeroFormateado = numeroLimpio.startsWith("56") 
+        ? `+${numeroLimpio}` 
+        : numeroLimpio.startsWith("+56")
+        ? numeroLimpio
+        : `+56${numeroLimpio}`;
+
+      // Mensaje para WhatsApp
+      const clienteNombre = reporteData.razon_social || formData.razon_social || (reporte.ticket as any)?.cliente_nombre || "Cliente";
+      const mensaje = `Hola! Te envío el Reporte Técnico N° ${ticketId} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
+      
+      // Crear enlace de WhatsApp
+      const mensajeCodificado = encodeURIComponent(mensaje);
+      const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
+      
+      // Abrir WhatsApp
+      window.open(whatsappUrl, "_blank");
+      
+      // Descargar el PDF automáticamente
+      // Nota: Necesitarás implementar la función descargarReportePDF
+      alert("✅ WhatsApp abierto. Por favor, descarga el PDF del reporte y adjúntalo en la conversación de WhatsApp.");
+
+    } catch (error: any) {
+      console.error('Error enviando por WhatsApp:', error);
+      alert('Error al preparar el envío por WhatsApp: ' + (error.message || 'Error desconocido'));
+    }
   };
 
   return (
@@ -1061,6 +1156,47 @@ export function ReporteAlfapackDialog({
               )}
             </div>
           </div>
+
+          {/* Firma del Técnico */}
+          <div className="bg-card p-6 rounded-lg border shadow-sm">
+            <h3 className="font-bold text-lg mb-4 bg-primary text-primary-foreground p-3 rounded-lg -mx-6 -mt-6 mb-6 shadow-md">FIRMA DEL TÉCNICO</h3>
+            <div className="space-y-4">
+              {firmaTecnico ? (
+                <div className="border-2 border-primary rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">Firma capturada:</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFirmaTecnico(null)}
+                    >
+                      Cambiar Firma
+                    </Button>
+                  </div>
+                  <img 
+                    src={firmaTecnico.imagen} 
+                    alt="Firma del técnico" 
+                    className="max-w-full h-24 object-contain border rounded"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {firmaTecnico.nombre} - {new Date(firmaTecnico.fecha).toLocaleString('es-CL')}
+                  </p>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMostrarFirmaTecnicoDialog(true)}
+                  className="w-full"
+                  disabled={!tecnicoNombre}
+                >
+                  <Pen className="h-4 w-4 mr-2" />
+                  Capturar Firma del Técnico
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
@@ -1112,6 +1248,16 @@ export function ReporteAlfapackDialog({
               </>
             )}
           </Button>
+          {reporteGuardadoId && (
+            <Button
+              onClick={enviarPorWhatsApp}
+              disabled={guardando}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Enviar por WhatsApp
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1177,19 +1323,19 @@ export function ReporteAlfapackDialog({
               </h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500 font-semibold">Cliente: </span>
+                  <span className="text-gray-700 font-semibold">Cliente: </span>
                   <span className="font-medium text-gray-900">{ticketData.cliente_nombre || "________________"}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold">Contacto: </span>
+                  <span className="text-gray-700 font-semibold">Contacto: </span>
                   <span className="font-medium text-gray-900">{ticketData.cliente_contacto || "________________"}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold">Equipo: </span>
+                  <span className="text-gray-700 font-semibold">Equipo: </span>
                   <span className="font-medium text-gray-900">{ticketData.dispositivo_modelo || "________________"}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold">Fecha: </span>
+                  <span className="text-gray-700 font-semibold">Fecha: </span>
                   <span className="font-medium text-gray-900">{new Date().toLocaleDateString('es-CL', { 
                     year: 'numeric', 
                     month: 'long', 
@@ -1206,7 +1352,7 @@ export function ReporteAlfapackDialog({
               </h3>
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500 font-semibold">Tipo de Servicio: </span>
+                  <span className="text-gray-700 font-semibold">Tipo de Servicio: </span>
                   <span className="font-medium text-gray-900">
                     {formData.tipo_servicio && formData.tipo_servicio.length > 0 ? (
                       formData.tipo_servicio.map((tipo) => {
@@ -1228,15 +1374,15 @@ export function ReporteAlfapackDialog({
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold">Horas Trabajo: </span>
+                  <span className="text-gray-700 font-semibold">Horas Trabajo: </span>
                   <span className="font-medium text-gray-900">{formData.horas_trabajo ? `${formData.horas_trabajo}h` : "________________"}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold">Horas Espera: </span>
+                  <span className="text-gray-700 font-semibold">Horas Espera: </span>
                   <span className="font-medium text-gray-900">{formData.horas_espera ? `${formData.horas_espera}h` : "________________"}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold">Facturable: </span>
+                  <span className="text-gray-700 font-semibold">Facturable: </span>
                   <span className="font-medium text-gray-900">{formData.facturable !== undefined ? (formData.facturable ? "Sí" : "No") : "________________"}</span>
                 </div>
               </div>
@@ -1323,7 +1469,7 @@ export function ReporteAlfapackDialog({
               <div className="grid grid-cols-2 gap-4 text-sm text-white">
                 <div>
                   <span className="text-gray-300 font-semibold">Técnico Responsable: </span>
-                  <span className="font-medium text-white">[Tu nombre aparecerá aquí]</span>
+                  <span className="font-medium text-white">{tecnicoNombre || "[Tu nombre aparecerá aquí]"}</span>
                 </div>
                 <div>
                   <span className="text-gray-300 font-semibold">Fecha de Generación: </span>
@@ -1410,6 +1556,22 @@ export function ReporteAlfapackDialog({
           }}
         />
       )}
+
+      {/* Diálogo de Firma del Técnico - Para capturar antes de guardar */}
+      <FirmaTecnicoDialog
+        open={mostrarFirmaTecnicoDialog && !reporteGuardadoId}
+        onOpenChange={(open) => {
+          setMostrarFirmaTecnicoDialog(open);
+        }}
+        reporteId={0} // No se usa cuando se captura antes de guardar
+        tecnicoNombre={tecnicoNombre}
+        onSuccess={(firmaData) => {
+          // Guardar la firma en el estado local
+          setFirmaTecnico(firmaData || null);
+          setMostrarFirmaTecnicoDialog(false);
+        }}
+        capturaLocal={true} // Modo de captura local
+      />
     </>
   );
 }

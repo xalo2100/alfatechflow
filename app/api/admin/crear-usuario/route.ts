@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear cliente de administración
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
 
     // Verificar que el email no esté en uso
     const { data: emailExistente } = await adminClient

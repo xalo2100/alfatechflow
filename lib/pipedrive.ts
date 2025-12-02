@@ -8,7 +8,7 @@ import { decrypt } from "@/lib/encryption";
 export async function getPipedriveApiKey(): Promise<string> {
   try {
     // Usar cliente de admin para tener permisos completos en el servidor
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     
     console.log(`[PIPEDRIVE] 🔑 Obteniendo API key desde base de datos...`);
     
@@ -21,12 +21,19 @@ export async function getPipedriveApiKey(): Promise<string> {
 
     if (configError) {
       console.error("❌ Error consultando configuración de Pipedrive:", configError);
+      // Intentar usar variable de entorno como fallback
       const envKey = process.env.PIPEDRIVE_API_KEY;
       if (envKey) {
         console.log("⚠️ Usando API key de Pipedrive de variable de entorno debido a error en base de datos");
         return envKey;
       }
-      throw new Error("Error al acceder a la configuración de la API key de Pipedrive. Verifica tus permisos.");
+      // Mensaje más claro sobre el problema
+      const errorMsg = configError.message || "Error desconocido";
+      if (errorMsg.includes("permission") || errorMsg.includes("policy") || errorMsg.includes("RLS")) {
+        console.warn("⚠️ Error de permisos RLS. El service role debería bypasear RLS. Usando variable de entorno si está disponible.");
+        throw new Error("No tienes permisos para leer la configuración y no hay API key en variables de entorno. Verifica que la SERVICE_ROLE_KEY esté configurada correctamente o agrega PIPEDRIVE_API_KEY en .env.local");
+      }
+      throw new Error(`Error al acceder a la configuración: ${errorMsg}. Si acabas de cambiar la configuración de Supabase, es posible que necesites configurar las API keys nuevamente.`);
     }
 
     if (config?.valor_encriptado) {
@@ -80,7 +87,7 @@ export async function getPipedriveApiKey(): Promise<string> {
 export async function getPipedriveDomain(): Promise<string> {
   try {
     // Usar cliente de admin para tener permisos completos en el servidor
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     
     console.log(`[PIPEDRIVE] 🔑 Obteniendo dominio desde base de datos...`);
     

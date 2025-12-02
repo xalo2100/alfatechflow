@@ -16,8 +16,8 @@ export function AppConfigLoader() {
       try {
         const supabase = createClient();
         
-        // Cargar nombre y logo desde la base de datos
-        const [nombreResult, logoResult, colorResult] = await Promise.all([
+        // Cargar nombre, logo y favicon desde la base de datos
+        const [nombreResult, logoResult, faviconResult, colorResult] = await Promise.all([
           supabase
             .from("configuraciones")
             .select("valor_encriptado")
@@ -27,6 +27,11 @@ export function AppConfigLoader() {
             .from("configuraciones")
             .select("valor_encriptado")
             .eq("clave", "app_logo")
+            .maybeSingle(),
+          supabase
+            .from("configuraciones")
+            .select("valor_encriptado")
+            .eq("clave", "app_favicon")
             .maybeSingle(),
           supabase
             .from("configuraciones")
@@ -44,6 +49,9 @@ export function AppConfigLoader() {
         }
         if (logoResult.data?.valor_encriptado) {
           config.logo = logoResult.data.valor_encriptado;
+        }
+        if (faviconResult.data?.valor_encriptado) {
+          config.favicon = faviconResult.data.valor_encriptado;
         }
         if (colorResult.data?.valor_encriptado) {
           config.colores.primary = colorResult.data.valor_encriptado;

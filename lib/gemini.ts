@@ -9,10 +9,10 @@ import { decrypt } from "@/lib/encryption";
 export async function getGeminiApiKey(): Promise<string> {
   try {
     // Usar cliente de admin para tener permisos completos en el servidor
-    const supabase = createAdminClient();
-    
+    const supabase = await createAdminClient();
+
     console.log(`[GEMINI] 🔑 Obteniendo API key desde base de datos...`);
-    
+
     // Intentar obtener desde la base de datos
     const { data: config, error: configError } = await supabase
       .from("configuraciones")
@@ -22,12 +22,19 @@ export async function getGeminiApiKey(): Promise<string> {
 
     if (configError) {
       console.error("❌ Error consultando configuración de Gemini:", configError);
+      // Intentar usar variable de entorno como fallback
       const envKey = process.env.GEMINI_API_KEY;
       if (envKey) {
         console.log("⚠️ Usando API key de Gemini de variable de entorno debido a error en base de datos");
         return envKey;
       }
-      throw new Error("Error al acceder a la configuración de la API key de Gemini. Verifica tus permisos.");
+      // Mensaje más claro sobre el problema
+      const errorMsg = configError.message || "Error desconocido";
+      if (errorMsg.includes("permission") || errorMsg.includes("policy") || errorMsg.includes("RLS")) {
+        console.warn("⚠️ Error de permisos RLS. El service role debería bypasear RLS. Usando variable de entorno si está disponible.");
+        throw new Error("No tienes permisos para leer la configuración y no hay API key en variables de entorno. Verifica que la SERVICE_ROLE_KEY esté configurada correctamente o agrega GEMINI_API_KEY en .env.local");
+      }
+      throw new Error(`Error al acceder a la configuración: ${errorMsg}. Si acabas de cambiar la configuración de Supabase, es posible que necesites configurar las API keys nuevamente.`);
     }
 
     if (config?.valor_encriptado) {
@@ -85,7 +92,8 @@ export async function generarInforme(notasBrutas: string): Promise<{
 }> {
   const apiKey = await getGeminiApiKey();
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  // Usar gemini-2.0-flash como default - es el más rápido y eficiente
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   const prompt = `${SYSTEM_PROMPT}\n\nNotas del técnico: ${notasBrutas}\n\nGenera el informe en formato JSON.`;
 

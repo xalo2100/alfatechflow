@@ -1,0 +1,38 @@
+# 🔑 Variables de Entorno para Vercel
+# Copia y pega estas en Vercel → Settings → Environment Variables
+
+# ============================================
+# 1. NEXT_PUBLIC_SUPABASE_URL
+# ============================================
+https://pprqdmeqavrcrpjguwrn.supabase.co
+
+# ============================================
+# 2. NEXT_PUBLIC_SUPABASE_ANON_KEY
+# ============================================
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwcnFkbWVxYXZyY3Jwamd1d3JuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwNzcyNjAsImV4cCI6MjA3OTY1MzI2MH0.9d0j9AztwRKpfaHgqFE29FC4jV_KhntdeQzm1KpIYzw
+
+# ============================================
+# 3. SUPABASE_SERVICE_ROLE_KEY
+# ============================================
+OBTENER DE: https://supabase.com/dashboard → Settings → API → service_role
+
+# ============================================
+# 4. RESEND_API_KEY
+# ============================================
+re_ViXZcfg3_6FKvBq2RofQc29je96raWisa
+
+# ============================================
+# 5. ENCRYPTION_KEY
+# ============================================
+OWQTQK6i9MmXRYhnOjakR9w4LG3fsKFQuIBdgib6g/w=
+
+# ============================================
+# 6. NEXT_PUBLIC_APP_URL (Opcional)
+# ============================================
+https://alfatechflow-83ck.vercel.app
+(O usa la URL que te dé Vercel después del deploy)
+
+
+
+
+

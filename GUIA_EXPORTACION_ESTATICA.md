@@ -196,3 +196,7 @@ Para solucionar las API routes, necesitarás:
 - Un backend separado (ej: funciones de Netlify, Vercel Functions, o un servidor)
 - O mover toda la lógica al cliente
 
+
+
+
+

@@ -92,7 +92,7 @@ export function TicketListView({ tickets, onViewDetail, onRequestUrgent }: Ticke
                   {(ticket as any).tecnico && (
                     <>
                       <p className="font-semibold text-sm text-muted-foreground">Técnico Asignado</p>
-                      <p className="text-sm font-medium text-blue-600">{(ticket as any).tecnico.nombre_completo}</p>
+                      <p className="text-sm font-medium" style={{ color: "#f97316" }}>{(ticket as any).tecnico.nombre_completo}</p>
                     </>
                   )}
                   {ticket.dispositivo_modelo && (

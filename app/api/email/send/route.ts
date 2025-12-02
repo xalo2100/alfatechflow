@@ -29,26 +29,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Opción 2: Usar nodemailer con SMTP
-    // Necesitas instalar: npm install nodemailer
-    // Y configurar variables SMTP en .env.local
-    
+    // Opción 2: Usar nodemailer con SMTP (deshabilitado para evitar errores de build)
+    // Si necesitas usar SMTP, descomenta este código y asegúrate de tener nodemailer instalado
+    // npm install nodemailer
+    /*
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         // Importar nodemailer dinámicamente solo si está instalado
-        let nodemailer;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          nodemailer = require("nodemailer");
-        } catch {
-          return NextResponse.json(
-            { 
-              error: "nodemailer no está instalado. Instálalo con: npm install nodemailer",
-              hint: "O configura RESEND_API_KEY para usar Resend"
-            },
-            { status: 500 }
-          );
-        }
+        const nodemailerModule = await import("nodemailer");
+        const nodemailer = nodemailerModule.default || nodemailerModule;
         
         const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
@@ -71,13 +60,14 @@ export async function POST(request: NextRequest) {
       } catch (smtpError: any) {
         return NextResponse.json(
           { 
-            error: "Error configurando SMTP. Asegúrate de tener nodemailer instalado.",
+            error: "Error configurando SMTP.",
             details: smtpError.message 
           },
           { status: 500 }
         );
       }
     }
+    */
 
     // Si no hay configuración de email, retornar error
     return NextResponse.json(

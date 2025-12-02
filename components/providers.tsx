@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { AppConfigLoader } from "@/components/app-config-loader";
+import { DynamicFavicon } from "@/components/dynamic-favicon";
+import { DynamicTitle } from "@/components/dynamic-title";
 import type { User } from "@supabase/supabase-js";
 
 type UserContextType = {
@@ -24,7 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Cargar usuario de forma asíncrona sin bloquear
     const loadUser = async () => {
       try {
@@ -49,14 +51,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  // Evitar problemas de hidratación
-  if (!mounted) {
-    return <>{children}</>;
-  }
+
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AppConfigLoader />
+      <DynamicFavicon />
+      <DynamicTitle />
       <UserContext.Provider value={{ user, loading }}>
         {children}
       </UserContext.Provider>

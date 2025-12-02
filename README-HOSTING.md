@@ -107,3 +107,7 @@ R: No, solo seguir los pasos de la guía.
 - `INSTALACION_HOSTINGER_PASO_A_PASO.md` - Guía para Hostinger
 - `OPCIONES_HOSTING.md` - Comparativa detallada
 
+
+
+
+

@@ -95,7 +95,7 @@ export function TicketDetail({
       }
 
       const tieneFirma = reporteData.firma_cliente && reporteData.firma_cliente.imagen;
-      
+
       if (!tieneFirma) {
         // Si no tiene firma, abrir directamente el diálogo de firma
         setShowFirmaDialog(true);
@@ -111,10 +111,10 @@ export function TicketDetail({
 
   const generarHTMLReporte = (reporte: any, reporteData: any) => {
     const appConfig = getAppConfig();
-    const logoHTML = appConfig?.logo 
+    const logoHTML = appConfig?.logo
       ? `<img src="${appConfig.logo}" alt="Logo" style="max-height: 60px; margin-bottom: 10px;" />`
       : `<div class="logo">${appConfig?.nombre || "α pack - Alfapack SpA"}</div>`;
-    
+
     return `
 <!DOCTYPE html>
 <html>
@@ -261,7 +261,7 @@ export function TicketDetail({
     tempDiv.style.pointerEvents = 'none';
     tempDiv.style.zIndex = '-9999';
     tempDiv.style.overflow = 'hidden';
-    
+
     const html = generarHTMLReporte(reporte, reporteData);
     tempDiv.innerHTML = html;
     document.body.appendChild(tempDiv);
@@ -282,7 +282,7 @@ export function TicketDetail({
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
+
       // Márgenes del PDF (2cm arriba/abajo, 1.5cm izquierda/derecha)
       const marginTop = 20;
       const marginBottom = 20;
@@ -292,11 +292,11 @@ export function TicketDetail({
       const pageHeight = 297; // A4 height in mm
       const contentWidth = pageWidth - marginLeft - marginRight;
       const contentHeight = pageHeight - marginTop - marginBottom;
-      
+
       // Calcular dimensiones de la imagen respetando los márgenes
       const imgWidth = contentWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
+
       let heightLeft = imgHeight;
       let position = marginTop;
 
@@ -336,9 +336,9 @@ export function TicketDetail({
       }
 
       // Obtener número de celular del cliente
-      const celular = reporteData.celular || 
-                     (ticket.datos_cliente as any)?.celular || 
-                     "";
+      const celular = reporteData.celular ||
+        (ticket as any).datos_cliente?.celular ||
+        "";
 
       if (!celular || celular.trim() === "") {
         alert("⚠️ No se encontró número de celular del cliente. Por favor, agregue el número en los datos del reporte.");
@@ -348,26 +348,26 @@ export function TicketDetail({
       // Limpiar número (quitar espacios, guiones, paréntesis)
       const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
       // Asegurar que empiece con código de país (Chile: +56)
-      const numeroFormateado = numeroLimpio.startsWith("56") 
-        ? `+${numeroLimpio}` 
+      const numeroFormateado = numeroLimpio.startsWith("56")
+        ? `+${numeroLimpio}`
         : numeroLimpio.startsWith("+56")
-        ? numeroLimpio
-        : `+56${numeroLimpio}`;
+          ? numeroLimpio
+          : `+56${numeroLimpio}`;
 
       // Mensaje para WhatsApp
       const clienteNombre = reporteData.razon_social || ticket.cliente_nombre || "Cliente";
       const mensaje = `Hola! Te envío el Reporte Técnico N° ${reporte.ticket_id} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
-      
+
       // Crear enlace de WhatsApp
       const mensajeCodificado = encodeURIComponent(mensaje);
       const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
-      
+
       // Abrir WhatsApp
       window.open(whatsappUrl, "_blank");
-      
+
       // Descargar el PDF automáticamente para que el usuario lo pueda adjuntar
       await descargarReportePDF(reporte);
-      
+
       // Mensaje final
       setTimeout(() => {
         alert("✅ WhatsApp abierto. El PDF se descargó automáticamente. Por favor, adjunta el PDF en la conversación de WhatsApp.");
@@ -461,19 +461,19 @@ export function TicketDetail({
               <div className="flex gap-2 mt-2">
                 <Badge className={
                   ticket.estado === "abierto" ? "bg-gray-200 text-gray-900 font-semibold" :
-                  ticket.estado === "asignado" ? "bg-blue-500 text-white font-semibold" :
-                  ticket.estado === "en_proceso" ? "bg-yellow-500 text-white font-semibold" :
-                  ticket.estado === "espera_repuesto" ? "bg-orange-500 text-white font-semibold" :
-                  ticket.estado === "finalizado" ? "bg-green-500 text-white font-semibold" :
-                  "bg-purple-500 text-white font-semibold"
+                    ticket.estado === "asignado" ? "bg-blue-500 text-white font-semibold" :
+                      ticket.estado === "en_proceso" ? "bg-yellow-500 text-white font-semibold" :
+                        ticket.estado === "espera_repuesto" ? "bg-orange-500 text-white font-semibold" :
+                          ticket.estado === "finalizado" ? "bg-green-500 text-white font-semibold" :
+                            "bg-purple-500 text-white font-semibold"
                 }>
                   {ticket.estado.replace("_", " ")}
                 </Badge>
                 <Badge variant="outline" className={
                   ticket.prioridad === "baja" ? "bg-gray-400 text-white font-semibold" :
-                  ticket.prioridad === "normal" ? "bg-blue-500 text-white font-semibold" :
-                  ticket.prioridad === "alta" ? "bg-orange-500 text-white font-semibold" :
-                  "bg-red-600 text-white font-semibold animate-pulse"
+                    ticket.prioridad === "normal" ? "bg-blue-500 text-white font-semibold" :
+                      ticket.prioridad === "alta" ? "bg-orange-500 text-white font-semibold" :
+                        "bg-red-600 text-white font-semibold animate-pulse"
                 }>
                   {ticket.prioridad}
                 </Badge>

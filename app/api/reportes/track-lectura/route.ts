@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Registrar la lectura del reporte
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
     
     // Obtener el reporte actual
     const { data: reporte, error: reporteError } = await adminClient
