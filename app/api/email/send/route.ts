@@ -22,56 +22,23 @@ export async function POST(request: NextRequest) {
         from: from || "Soporte Técnico Alfapack <soportetecnico@alfapack.cl>",
       });
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         id: result.id,
-        warning: result.warning 
+        warning: result.warning
       });
     }
 
     // Opción 2: Usar nodemailer con SMTP (deshabilitado para evitar errores de build)
     // Si necesitas usar SMTP, descomenta este código y asegúrate de tener nodemailer instalado
     // npm install nodemailer
-    /*
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        // Importar nodemailer dinámicamente solo si está instalado
-        const nodemailerModule = await import("nodemailer");
-        const nodemailer = nodemailerModule.default || nodemailerModule;
-        
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || "587"),
-          secure: process.env.SMTP_SECURE === "true",
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-
-        const info = await transporter.sendMail({
-          from: from || "Soporte Técnico Alfapack <soportetecnico@alfapack.cl>",
-          to: Array.isArray(to) ? to.join(", ") : to,
-          subject: subject,
-          html: html,
-        });
-
-        return NextResponse.json({ success: true, messageId: info.messageId });
-      } catch (smtpError: any) {
-        return NextResponse.json(
-          { 
-            error: "Error configurando SMTP.",
-            details: smtpError.message 
-          },
-          { status: 500 }
-        );
-      }
-    }
-    */
+    // Opción 2: Usar nodemailer con SMTP (deshabilitado para evitar errores de build)
+    // Si necesitas usar SMTP, descomenta este código y asegúrate de tener nodemailer instalado
+    // (Código eliminado para evitar errores de build en Vercel)
 
     // Si no hay configuración de email, retornar error
     return NextResponse.json(
-      { 
+      {
         error: "No hay configuración de email. Configura RESEND_API_KEY o SMTP en .env.local",
         hint: "Para usar Resend: npm install resend y agrega RESEND_API_KEY=tu_key"
       },
