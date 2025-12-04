@@ -9,6 +9,9 @@ export async function createClient() {
   let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
   let supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 
+  /* 
+  // DESHABILITADO TEMPORALMENTE: Esto causa problemas si la configuración en DB es diferente a las variables de entorno
+  // Priorizamos las variables de entorno para asegurar consistencia entre cliente y servidor
   try {
     const dbConfig = await getSupabaseConfigFromDB();
     if (dbConfig) {
@@ -19,6 +22,7 @@ export async function createClient() {
     // Si hay error obteniendo de la DB, usar variables de entorno
     console.warn("No se pudo obtener configuración de Supabase desde DB, usando variables de entorno:", error);
   }
+  */
 
   return createServerClient(
     supabaseUrl,

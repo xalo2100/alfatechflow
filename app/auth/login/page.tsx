@@ -108,6 +108,8 @@ export default function LoginPage() {
           </CardTitle>
           <CardDescription className="text-center">
             Sistema de Gestión de Soporte Técnico
+            <br />
+            <span className="text-xs text-muted-foreground">v1.2 (Fix Login)</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
