@@ -51,15 +51,39 @@
 4. Marca: ✅ Production, ✅ Preview, ✅ Development
 5. Click **"Save"**
 
-### Variable 4: `RESEND_API_KEY`
+### Variable 4: `GEMINI_API_KEY`
 
 1. Click en **"Add New"**
-2. **Key:** `RESEND_API_KEY`
-3. **Value:** `re_ViXZcfg3_6FKvBq2RofQc29je96raWisa`
+2. **Key:** `GEMINI_API_KEY`
+3. **Value:** `AIzaSyB3KOr3rtX3xXH_cv74eUgX4GGMqOfVZVY`
 4. Marca: ✅ Production, ✅ Preview, ✅ Development
 5. Click **"Save"**
 
-### Variable 5: `ENCRYPTION_KEY`
+### Variable 5: `PIPEDRIVE_API_KEY`
+
+1. Click en **"Add New"**
+2. **Key:** `PIPEDRIVE_API_KEY`
+3. **Value:** `a74e65dc1f52341c9c3790a54cf9bd92b20bc546`
+4. Marca: ✅ Production, ✅ Preview, ✅ Development
+5. Click **"Save"**
+
+### Variable 6: `PIPEDRIVE_DOMAIN`
+
+1. Click en **"Add New"**
+2. **Key:** `PIPEDRIVE_DOMAIN`
+3. **Value:** `alfapack`
+4. Marca: ✅ Production, ✅ Preview, ✅ Development
+5. Click **"Save"**
+
+### Variable 7: `RESEND_API_KEY`
+
+1. Click en **"Add New"**
+2. **Key:** `RESEND_API_KEY`
+3. **Value:** `re_aWuY9zRS_2RQeMu1kj5ZoF5d9kkGFYviV`
+4. Marca: ✅ Production, ✅ Preview, ✅ Development
+5. Click **"Save"**
+
+### Variable 8: `ENCRYPTION_KEY`
 
 1. Click en **"Add New"**
 2. **Key:** `ENCRYPTION_KEY`
@@ -98,12 +122,12 @@ Después del redeploy:
 
 ## 📋 Checklist Final:
 
-- [ ] Agregué las 5 variables en Vercel
+- [ ] Agregué las **8 variables** en Vercel (Supabase x3, Gemini, Pipedrive x2, Resend, Encryption)
 - [ ] Marqué todas para Production, Preview y Development
 - [ ] **Hice redeploy después de agregar las variables**
 - [ ] Esperé a que termine el redeploy
 - [ ] Recargué la página de la app
-- [ ] Ya no redirige a /preview
+- [ ] Verifiqué que todas las APIs conecten correctamente
 
 ---
 

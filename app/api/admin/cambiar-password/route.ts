@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!perfil || perfil.rol !== "admin") {
+    if (!perfil || (perfil.rol !== "admin" && perfil.rol !== "super_admin")) {
       return NextResponse.json(
         { error: "Solo los administradores pueden cambiar contraseñas" },
         { status: 403 }
@@ -57,13 +57,13 @@ export async function POST(request: NextRequest) {
     let adminClient;
     try {
       adminClient = await createAdminClient();
-      
+
       // Verificar que la configuración sea válida haciendo una prueba simple
       const testConnection = await adminClient.from("perfiles").select("id").limit(1);
       if (testConnection.error) {
         const errorMsg = testConnection.error.message || "";
         console.error("❌ Error verificando conexión:", errorMsg);
-        
+
         // Verificar si es un error de API key
         if (errorMsg.includes("API key") || errorMsg.includes("Invalid") || errorMsg.includes("JWT")) {
           return NextResponse.json(
@@ -71,20 +71,20 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
-        
+
         // Si es otro tipo de error, continuar (puede ser que no haya perfiles aún)
         console.warn("⚠️ Advertencia al verificar conexión:", errorMsg);
       }
     } catch (error: any) {
       console.error("❌ Error creando adminClient:", error.message);
-      
+
       if (error.message?.includes("SERVICE_ROLE_KEY") || error.message?.includes("no está configurada")) {
         return NextResponse.json(
           { error: "Error de configuración: La SERVICE_ROLE_KEY no está configurada. Por favor, agrega SUPABASE_SERVICE_ROLE_KEY en tu archivo .env.local" },
           { status: 500 }
         );
       }
-      
+
       return NextResponse.json(
         { error: `Error de configuración del servidor: ${error.message || "Error desconocido"}. Por favor, verifica que SUPABASE_SERVICE_ROLE_KEY esté configurada correctamente.` },
         { status: 500 }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       console.error("UsuarioId buscado:", usuarioId);
       console.error("Código de error:", perfilError?.code);
       console.error("Detalles del error:", perfilError);
-      
+
       // Si es un error de autenticación/autorización, indicarlo claramente
       if (perfilError.message?.includes("API key") || perfilError.message?.includes("Invalid")) {
         return NextResponse.json(
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      
+
       return NextResponse.json(
         { error: "Usuario no encontrado en el sistema" },
         { status: 404 }
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     // El ID en perfiles debería ser el mismo que el ID en auth.users
     let authUserId = usuarioId;
     let usuarioEncontrado = false;
-    
+
     console.log("🔍 Buscando usuario en auth.users:", {
       usuarioId,
       email: perfilUsuario.email || "Sin email",
@@ -141,20 +141,20 @@ export async function POST(request: NextRequest) {
     try {
       // Intentar obtener el usuario directamente por ID
       const { data: authUser, error: authUserError } = await adminClient.auth.admin.getUserById(usuarioId);
-      
+
       if (authUser?.user && !authUserError) {
         usuarioEncontrado = true;
         console.log("✅ Usuario encontrado en auth.users por ID:", usuarioId);
       } else {
         console.warn("⚠️ Usuario no encontrado por ID. Error:", authUserError?.message);
-        
+
         // Si no se encuentra por ID, intentar buscar por email si existe
         if (perfilUsuario.email) {
           console.log("🔍 Buscando usuario por email:", perfilUsuario.email);
-          
+
           // Listar usuarios y buscar por email
           const { data: usersList, error: listError } = await adminClient.auth.admin.listUsers();
-          
+
           if (!listError && usersList?.users) {
             const userByEmail = usersList.users.find(u => u.email === perfilUsuario.email);
             if (userByEmail) {

@@ -17,7 +17,7 @@ export default async function AdminPage() {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (perfilError || !perfil || perfil.rol !== "admin") {
+  if (perfilError || !perfil || (perfil.rol !== "admin" && perfil.rol !== "super_admin")) {
     redirect("/auth/login");
   }
 

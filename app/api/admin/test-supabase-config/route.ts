@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     // Verificar que el usuario que hace la petición sea admin
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-    
+
     const supabase = createServerClient(
       supabaseUrl,
       supabaseKey,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!perfil || perfil.rol !== "admin") {
+    if (!perfil || (perfil.rol !== "admin" && perfil.rol !== "super_admin")) {
       return NextResponse.json(
         { error: "Solo los administradores pueden probar configuraciones de Supabase" },
         { status: 403 }
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       if (serviceKey && serviceKey.trim() !== "") {
         try {
           const adminTestClient = createClient(url, serviceKey.trim());
-          
+
           // Probar con una consulta simple que debería funcionar con Service Role
           const { error: adminTestError } = await adminTestClient
             .from("perfiles")
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
               );
             }
-            
+
             // Si el error es que la tabla no existe, es un problema de estructura
             if (adminTestError.message?.includes("relation") || adminTestError.message?.includes("does not exist")) {
               return NextResponse.json(
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
               );
             }
-            
+
             return NextResponse.json(
               { error: `Error al validar Service Role Key: ${adminTestError.message}` },
               { status: 400 }

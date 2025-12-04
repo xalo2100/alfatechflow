@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { format, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2, Database as DatabaseIcon, Mail } from "lucide-react";
@@ -25,6 +26,7 @@ import { ConfigApiDialog } from "@/components/admin/config-api-dialog";
 import { ConfigPipedriveDialog } from "@/components/admin/config-pipedrive-dialog";
 import { ConfigSupabaseDialog } from "@/components/admin/config-supabase-dialog";
 import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
+import { TicketDetail } from "@/components/tecnico/ticket-detail";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -65,6 +67,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const [usuarioParaEliminar, setUsuarioParaEliminar] = useState<UsuarioCompleto | null>(null);
   const [usuarioParaCambiarContraseña, setUsuarioParaCambiarContraseña] = useState<UsuarioCompleto | null>(null);
   const [ticketParaAsignar, setTicketParaAsignar] = useState<Ticket | null>(null);
+  const [ticketParaVer, setTicketParaVer] = useState<Ticket | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const supabase = createClient();
 
@@ -313,7 +316,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar rol="admin" nombre={perfil.nombre_completo} />
+      <Navbar
+        rol={perfil.rol === "super_admin" ? "Superadmin" : "Admin"}
+        nombre={perfil.nombre_completo}
+      />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex justify-between items-center">
           <div>
@@ -323,18 +329,25 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowPersonalizacion(true)}>
-              <Palette className="h-4 w-4 mr-2" />
-              Personalizar
-            </Button>
-            <Button variant="outline" onClick={() => setShowConfigApi(true)}>
-              <Key className="h-4 w-4 mr-2" />
-              Configurar IA
-            </Button>
-            <Button variant="outline" onClick={() => setShowConfigSupabase(true)}>
-              <DatabaseIcon className="h-4 w-4 mr-2" />
-              Configurar Supabase
-            </Button>
+            {/* Botones visibles solo para superadmin */}
+            {/* Botones visibles solo para superadmin */}
+            {perfil.rol === "super_admin" && (
+              <>
+                <Button variant="outline" onClick={() => setShowPersonalizacion(true)}>
+                  <Palette className="h-4 w-4 mr-2" />
+                  Personalizar
+                </Button>
+                <Button variant="outline" onClick={() => setShowConfigApi(true)}>
+                  <Key className="h-4 w-4 mr-2" />
+                  Configurar IA
+                </Button>
+                <Button variant="outline" onClick={() => setShowConfigSupabase(true)}>
+                  <DatabaseIcon className="h-4 w-4 mr-2" />
+                  Configurar Supabase
+                </Button>
+              </>
+            )}
+
             <Button variant="outline" onClick={() => setShowAgregarTecnico(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
               Agregar Técnico
@@ -423,24 +436,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                 <div key={ticket.id} className="relative">
                   <TicketCard
                     ticket={ticket}
-                    onViewDetail={(ticket) => {
-                      // Para admin, podríamos abrir un modal o navegar
-                      console.log("Admin viendo ticket:", ticket.id);
-                      alert(`Ticket #${ticket.id}\nCliente: ${ticket.cliente_nombre}\nEstado: ${ticket.estado}\nPrioridad: ${ticket.prioridad}`);
-                    }}
+                    onViewDetail={(ticket) => setTicketParaVer(ticket)}
+                    onAssign={(ticket) => setTicketParaAsignar(ticket)}
                   />
-                  <div className="absolute top-2 right-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setTicketParaAsignar(ticket)}
-                      className="bg-background/80 backdrop-blur-sm"
-                      title="Asignar o cambiar técnico"
-                    >
-                      <Users className="h-3 w-3 mr-1" />
-                      {ticket.asignado_a ? "Cambiar" : "Asignar"}
-                    </Button>
-                  </div>
+                  {/* Botón de asignar movido dentro de la tarjeta */}
                 </div>
               ))}
               {tickets.length === 0 && (
@@ -547,10 +546,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                             <td className="p-2">
                               <span
                                 className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "admin"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : usuario.rol === "ventas"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-green-100 text-green-800"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : usuario.rol === "ventas"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-green-100 text-green-800"
                                   }`}
                               >
                                 {usuario.rol === "admin"
@@ -568,8 +567,8 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                             <td className="p-2">
                               <span
                                 className={`px-2 py-1 rounded text-xs font-medium ${usuario.activo
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
                                   }`}
                               >
                                 {usuario.activo ? "Activo" : "Inactivo"}
@@ -802,7 +801,23 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           }}
         />
       )}
+
+      <Dialog open={!!ticketParaVer} onOpenChange={(open) => !open && setTicketParaVer(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {ticketParaVer && (
+            <TicketDetail
+              ticket={ticketParaVer}
+              tecnicoId={perfil.id}
+              onBack={() => setTicketParaVer(null)}
+              onUpdate={() => {
+                fetchTickets();
+                fetchStats();
+                setTicketParaVer(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

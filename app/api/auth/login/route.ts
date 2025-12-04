@@ -24,18 +24,8 @@ export async function POST(request: NextRequest) {
     if (isRUN) {
       const runFormateado = cleanedIdentifier.toUpperCase();
 
-      // Crear cliente de Supabase (usando anon key)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        return NextResponse.json(
-          { error: "Configuración de Supabase no encontrada" },
-          { status: 500 }
-        );
-      }
-
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      // Usar cliente admin para buscar por RUN (bypasear RLS)
+      const supabase = await createAdminClient();
 
       // Buscar perfil por RUN (la tabla perfiles debe tener RLS que permita SELECT público)
       const { data: perfil, error: perfilError } = await supabase

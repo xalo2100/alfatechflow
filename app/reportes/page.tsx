@@ -21,7 +21,7 @@ export default async function ReportesPage() {
   }
 
   // Solo admin y ventas pueden ver reportes
-  if (perfil.rol !== "admin" && perfil.rol !== "ventas") {
+  if (perfil.rol !== "admin" && perfil.rol !== "super_admin" && perfil.rol !== "ventas") {
     redirect("/");
   }
 

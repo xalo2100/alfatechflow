@@ -7,7 +7,7 @@ export async function DELETE(request: NextRequest) {
     // Crear cliente de Supabase usando las cookies del request
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-    
+
     const supabase = createServerClient(
       supabaseUrl,
       supabaseKey,
@@ -44,7 +44,7 @@ export async function DELETE(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!perfil || perfil.rol !== "admin") {
+    if (!perfil || (perfil.rol !== "admin" && perfil.rol !== "super_admin")) {
       return NextResponse.json(
         { error: "Solo los administradores pueden eliminar usuarios" },
         { status: 403 }
@@ -87,7 +87,122 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Eliminar el perfil primero
+    // Verificar si el usuario tiene tickets asignados
+    const { data: ticketsAsignados, error: ticketsError } = await adminClient
+      .from("tickets")
+      .select("id")
+      .eq("asignado_a", usuarioId);
+
+    if (ticketsError) {
+      console.error("Error verificando tickets:", ticketsError);
+      return NextResponse.json(
+        { error: `Error al verificar tickets: ${ticketsError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Si tiene tickets asignados, desasignarlos (poner asignado_a en null)
+    if (ticketsAsignados && ticketsAsignados.length > 0) {
+      console.log(`Usuario tiene ${ticketsAsignados.length} tickets asignados. Desasignando...`);
+
+      const { error: updateError } = await adminClient
+        .from("tickets")
+        .update({ asignado_a: null })
+        .eq("asignado_a", usuarioId);
+
+      if (updateError) {
+        console.error("Error desasignando tickets:", updateError);
+        return NextResponse.json(
+          { error: `Error al desasignar tickets: ${updateError.message}` },
+          { status: 500 }
+        );
+      }
+
+      console.log(`✅ ${ticketsAsignados.length} tickets desasignados correctamente`);
+    }
+
+    // Verificar si el usuario tiene reportes asociados
+    const { data: reportesAsociados, error: reportesError } = await adminClient
+      .from("reportes")
+      .select("id")
+      .eq("tecnico_id", usuarioId);
+
+    if (reportesError) {
+      console.error("Error verificando reportes:", reportesError);
+      return NextResponse.json(
+        { error: `Error al verificar reportes: ${reportesError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Si tiene reportes asociados, desasociarlos (poner tecnico_id en null)
+    if (reportesAsociados && reportesAsociados.length > 0) {
+      console.log(`Usuario tiene ${reportesAsociados.length} reportes asociados. Desasociando...`);
+
+      const { error: updateReportesError } = await adminClient
+        .from("reportes")
+        .update({ tecnico_id: null })
+        .eq("tecnico_id", usuarioId);
+
+      if (updateReportesError) {
+        console.error("Error desasociando reportes:", updateReportesError);
+        return NextResponse.json(
+          { error: `Error al desasociar reportes: ${updateReportesError.message}` },
+          { status: 500 }
+        );
+      }
+
+      console.log(`✅ ${reportesAsociados.length} reportes desasociados correctamente`);
+    }
+
+
+
+    // Verificar si el usuario creó tickets (creado_por)
+    const { data: ticketsCreados, error: ticketsCreadosError } = await adminClient
+      .from("tickets")
+      .select("id")
+      .eq("creado_por", usuarioId);
+
+    if (ticketsCreadosError) {
+      console.error("Error verificando tickets creados:", ticketsCreadosError);
+      return NextResponse.json(
+        { error: `Error al verificar tickets creados: ${ticketsCreadosError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Si creó tickets, desvincularlos (poner creado_por en null)
+    if (ticketsCreados && ticketsCreados.length > 0) {
+      console.log(`Usuario creó ${ticketsCreados.length} tickets. Desvinculando...`);
+
+      const { error: updateCreadosError } = await adminClient
+        .from("tickets")
+        .update({ creado_por: null })
+        .eq("creado_por", usuarioId);
+
+      if (updateCreadosError) {
+        console.error("Error desvinculando tickets creados:", updateCreadosError);
+        return NextResponse.json(
+          { error: `Error al desvincular tickets creados: ${updateCreadosError.message}` },
+          { status: 500 }
+        );
+      }
+      console.log(`✅ ${ticketsCreados.length} tickets creados desvinculados correctamente`);
+    }
+
+    // Eliminar ubicaciones del técnico (si existen)
+    // Aunque debería ser cascade, lo hacemos explícito por seguridad
+    const { error: ubicacionesError } = await adminClient
+      .from("ubicaciones_tecnicos")
+      .delete()
+      .eq("tecnico_id", usuarioId);
+
+    if (ubicacionesError) {
+      // Ignoramos error si la tabla no existe o hay otro problema menor
+      console.warn("Advertencia al eliminar ubicaciones:", ubicacionesError);
+    }
+
+    // Ahora eliminar el perfil
     const { error: perfilError } = await adminClient
       .from("perfiles")
       .delete()

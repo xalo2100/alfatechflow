@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertTriangle, Eye, Clock } from "lucide-react";
+import { AlertTriangle, Eye, Clock, Users } from "lucide-react";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -31,9 +31,10 @@ interface TicketCardProps {
   ticket: Ticket;
   onViewDetail?: (ticket: Ticket) => void;
   onRequestUrgent?: (ticketId: number) => void;
+  onAssign?: (ticket: Ticket) => void;
 }
 
-export function TicketCard({ ticket, onViewDetail, onRequestUrgent }: TicketCardProps) {
+export function TicketCard({ ticket, onViewDetail, onRequestUrgent, onAssign }: TicketCardProps) {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date(ticket.updated_at || ticket.created_at));
   const [isNewUpdate, setIsNewUpdate] = useState(false);
 
@@ -79,9 +80,8 @@ export function TicketCard({ ticket, onViewDetail, onRequestUrgent }: TicketCard
 
   return (
     <div
-      className={`border rounded-lg bg-card text-card-foreground shadow-sm hover:shadow-lg hover:border-primary transition-all cursor-pointer ${
-        isNewUpdate ? "ring-2 ring-blue-500" : ""
-      } ${ticket.prioridad === "urgente" ? "border-2 border-red-500" : ""}`}
+      className={`border rounded-lg bg-card text-card-foreground shadow-sm hover:shadow-lg hover:border-primary transition-all cursor-pointer ${isNewUpdate ? "ring-2 ring-blue-500" : ""
+        } ${ticket.prioridad === "urgente" ? "border-2 border-red-500" : ""}`}
       onClick={handleCardClick}
       title="Haz clic para ver detalles"
     >
@@ -126,10 +126,10 @@ export function TicketCard({ ticket, onViewDetail, onRequestUrgent }: TicketCard
             <p className="text-sm font-medium" style={{ color: "#f97316" }}>{(ticket as any).tecnico.nombre_completo}</p>
           </div>
         )}
-                  <div>
-                    <p className="font-semibold text-sm text-muted-foreground">Problema/Solicitud</p>
-                    <p className="text-sm line-clamp-2">{ticket.falla_declarada}</p>
-                  </div>
+        <div>
+          <p className="font-semibold text-sm text-muted-foreground">Problema/Solicitud</p>
+          <p className="text-sm line-clamp-2">{ticket.falla_declarada}</p>
+        </div>
         <div className="pt-2 border-t space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
@@ -143,43 +143,63 @@ export function TicketCard({ ticket, onViewDetail, onRequestUrgent }: TicketCard
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+        </div>
+        <div className="flex gap-2 mt-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 bg-background/80 backdrop-blur-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onAssign) {
+                onAssign(ticket);
+              } else {
+                // Fallback legacy
+                // @ts-ignore
+                if (window.setTicketParaAsignar) {
+                  // @ts-ignore
+                  window.setTicketParaAsignar(ticket);
+                } else {
+                  console.warn("onAssign no definido y setTicketParaAsignar no disponible");
+                }
+              }
+            }}
+            title="Asignar o cambiar técnico"
+          >
+            <Users className="h-3 w-3 mr-1" />
+            {ticket.asignado_a ? "Cambiar Técnico" : "Asignar Técnico"}
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="default"
+            className="flex-1"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onViewDetail) {
+                onViewDetail(ticket);
+              }
+            }}
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            Ver Detalle
+          </Button>
+          {ticket.prioridad !== "urgente" && onRequestUrgent && (
             <Button
               size="sm"
-              variant="default"
-              className="flex-1"
+              variant="destructive"
               onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log("🔵 Botón Ver Detalle clickeado para ticket:", ticket.id);
-                console.log("🔵 onViewDetail existe?", !!onViewDetail);
-                if (onViewDetail) {
-                  console.log("🔵 Llamando a onViewDetail con ticket:", ticket);
-                  onViewDetail(ticket);
-                } else {
-                  console.error("❌ onViewDetail no está definido");
-                  alert("Error: onViewDetail no está definido. Por favor, recarga la página.");
-                }
+                handleButtonClick(e);
+                onRequestUrgent(ticket.id);
               }}
+              className="flex items-center gap-1"
             >
-              <Eye className="h-3 w-3 mr-1" />
-              Ver Detalle
+              <AlertTriangle className="h-3 w-3" />
+              Urgente
             </Button>
-            {ticket.prioridad !== "urgente" && onRequestUrgent && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={(e) => {
-                  handleButtonClick(e);
-                  onRequestUrgent(ticket.id);
-                }}
-                className="flex items-center gap-1"
-              >
-                <AlertTriangle className="h-3 w-3" />
-                Urgente
-              </Button>
-            )}
-          </div>
+          )}
         </div>
       </CardContent>
     </div>

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     // Crear cliente de Supabase usando las cookies del request
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-    
+
     const supabase = createServerClient(
       supabaseUrl,
       supabaseKey,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!perfil || perfil.rol !== "admin") {
+    if (!perfil || (perfil.rol !== "admin" && perfil.rol !== "super_admin")) {
       return NextResponse.json(
         { error: "Solo los administradores pueden crear técnicos" },
         { status: 403 }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       .replace(/[\u0300-\u036f]/g, "") // Eliminar acentos
       .replace(/[^a-z0-9]/g, "") // Eliminar caracteres especiales
       .substring(0, 20); // Limitar longitud
-    
+
     const emailUsuario = email?.trim() || `${nombreNormalizado}@tecnico.local`;
 
     // Crear usuario en Authentication usando el cliente de administración
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     if (perfilError) {
       // Si falla crear el perfil, intentar eliminar el usuario creado
       await adminClient.auth.admin.deleteUser(authData.user.id);
-      
+
       return NextResponse.json(
         { error: `Error al crear perfil: ${perfilError.message}` },
         { status: 500 }
