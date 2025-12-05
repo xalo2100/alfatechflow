@@ -32,7 +32,7 @@ export function useRealtimeNotifications({ userId, userRole }: RealtimeNotificat
                 (payload) => {
                     const newTicket = payload.new as Ticket;
 
-                    if (userRole === 'tecnico' && newTicket.tecnico_id === userId) {
+                    if (userRole === 'tecnico' && newTicket.asignado_a === userId) {
                         notify({
                             title: '🎫 Nuevo Ticket Asignado',
                             body: `Ticket #${newTicket.id} - ${newTicket.cliente_nombre}`,
@@ -79,7 +79,7 @@ export function useRealtimeNotifications({ userId, userRole }: RealtimeNotificat
                         }
 
                         // Notificar a técnico cuando su ticket cambia de estado
-                        if (userRole === 'tecnico' && newTicket.tecnico_id === userId) {
+                        if (userRole === 'tecnico' && newTicket.asignado_a === userId) {
                             notify({
                                 title: '🔄 Cambio de Estado',
                                 body: `Ticket #${newTicket.id}: ${estadoLabels[oldTicket.estado]} → ${estadoLabels[newTicket.estado]}`,
