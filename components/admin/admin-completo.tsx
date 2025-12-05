@@ -19,6 +19,7 @@ import { CreateTicketDialog } from "@/components/ventas/create-ticket-dialog";
 import { TicketCard } from "@/components/ventas/ticket-card";
 import { AgregarTecnicoDialog } from "@/components/admin/agregar-tecnico-dialog";
 import { AgregarUsuarioDialog } from "@/components/admin/agregar-usuario-dialog";
+import { EditarUsuarioDialog } from "@/components/admin/editar-usuario-dialog";
 import { CambiarContraseñaDialog } from "@/components/admin/cambiar-contraseña-dialog";
 import { ConfirmarEliminarDialog } from "@/components/admin/confirmar-eliminar-dialog";
 import { AsignarTecnicoDialog } from "@/components/admin/asignar-tecnico-dialog";
@@ -27,6 +28,7 @@ import { ConfigPipedriveDialog } from "@/components/admin/config-pipedrive-dialo
 import { ConfigSupabaseDialog } from "@/components/admin/config-supabase-dialog";
 import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
 import { TicketDetail } from "@/components/tecnico/ticket-detail";
+import { EmpresasManager } from "@/components/admin/empresas-manager";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -64,12 +66,15 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const [showConfigSupabase, setShowConfigSupabase] = useState(false);
   const [showConfigResend, setShowConfigResend] = useState(false);
   const [showPersonalizacion, setShowPersonalizacion] = useState(false);
+  const [usuarioParaEditar, setUsuarioParaEditar] = useState<UsuarioCompleto | null>(null);
   const [usuarioParaEliminar, setUsuarioParaEliminar] = useState<UsuarioCompleto | null>(null);
   const [usuarioParaCambiarContraseña, setUsuarioParaCambiarContraseña] = useState<UsuarioCompleto | null>(null);
   const [ticketParaAsignar, setTicketParaAsignar] = useState<Ticket | null>(null);
   const [ticketParaVer, setTicketParaVer] = useState<Ticket | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const supabase = createClient();
+
+  // ... (rest of the code)
 
   const fetchStats = async () => {
     try {
@@ -381,11 +386,19 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
               <Users className="h-4 w-4 mr-2" />
               Usuarios
             </TabsTrigger>
+            <TabsTrigger value="empresas">
+              <Building2 className="h-4 w-4 mr-2" />
+              Empresas
+            </TabsTrigger>
             <TabsTrigger value="configuracion">
               <Settings className="h-4 w-4 mr-2" />
               Configuración
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="empresas" className="mt-6">
+            <EmpresasManager />
+          </TabsContent>
 
           <TabsContent value="metricas" className="mt-6">
             <Card>
@@ -532,7 +545,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                       </thead>
                       <tbody>
                         {usuarios.map((usuario) => (
-                          <tr key={usuario.id} className="border-b hover:bg-gray-50">
+                          <tr key={usuario.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                             <td className="p-2 font-medium">
                               {usuario.nombre_completo || "Sin nombre"}
                             </td>
@@ -583,6 +596,14 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                             </td>
                             <td className="p-2">
                               <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setUsuarioParaEditar(usuario)}
+                                  title="Editar usuario"
+                                >
+                                  <Settings className="h-3 w-3" />
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -704,6 +725,16 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           fetchStats();
         }}
         creadoPor={perfil.id}
+      />
+
+      <EditarUsuarioDialog
+        open={!!usuarioParaEditar}
+        onOpenChange={(open) => !open && setUsuarioParaEditar(null)}
+        usuario={usuarioParaEditar}
+        onSuccess={() => {
+          fetchUsuarios();
+          fetchStats();
+        }}
       />
 
       <AgregarTecnicoDialog

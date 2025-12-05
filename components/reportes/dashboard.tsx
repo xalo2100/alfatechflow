@@ -590,65 +590,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
     }
   };
 
-  const enviarReportePorWhatsApp = async (reporte: ReporteConTicket) => {
-    try {
-      // Obtener datos del reporte
-      let reporteData: any = {};
-      try {
-        reporteData = JSON.parse(reporte.reporte_ia as string);
-      } catch {
-        reporteData = {};
-      }
 
-      // Obtener número de celular del cliente
-      const celular = reporteData.celular || "";
-
-      if (!celular || celular.trim() === "") {
-        alert("⚠️ No se encontró número de celular del cliente. Por favor, agregue el número en los datos del reporte.");
-        return;
-      }
-
-      // Limpiar número (quitar espacios, guiones, paréntesis)
-      const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
-      // Asegurar que empiece con código de país (Chile: +56)
-      const numeroFormateado = numeroLimpio.startsWith("56")
-        ? `+${numeroLimpio}`
-        : numeroLimpio.startsWith("+56")
-          ? numeroLimpio
-          : `+56${numeroLimpio}`;
-
-      // Mostrar mensaje de carga
-      const mensajeCarga = "Generando PDF y preparando para WhatsApp...";
-      alert(mensajeCarga);
-
-      // Generar el PDF y obtenerlo como Blob
-      // Por ahora, descargarlo primero y luego permitir que el usuario lo envíe
-      // En una versión futura se puede subir automáticamente
-
-      // Mensaje para WhatsApp
-      const clienteNombre = reporteData.razon_social || reporte.ticket?.cliente_nombre || "Cliente";
-      const mensaje = `Hola! Te envío el Reporte Técnico N° ${reporte.ticket_id} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
-
-      // Crear enlace de WhatsApp
-      const mensajeCodificado = encodeURIComponent(mensaje);
-      const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
-
-      // Abrir WhatsApp
-      window.open(whatsappUrl, "_blank");
-
-      // Descargar el PDF automáticamente para que el usuario lo pueda adjuntar
-      await descargarReportePDF(reporte);
-
-      // Mensaje final
-      setTimeout(() => {
-        alert("✅ WhatsApp abierto. El PDF se descargó automáticamente. Por favor, adjunta el PDF en la conversación de WhatsApp.");
-      }, 1000);
-
-    } catch (error) {
-      console.error('Error enviando por WhatsApp:', error);
-      alert('Error al preparar el envío por WhatsApp: ' + (error instanceof Error ? error.message : 'Error desconocido'));
-    }
-  };
 
   const exportarReporte = (reporte: ReporteConTicket) => {
     // Crear ventana para imprimir
@@ -1354,7 +1296,6 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
           onOpenChange={(open) => !open && setSelectedReporte(null)}
           onExport={() => exportarReporte(selectedReporte)}
           onDownload={() => descargarReportePDF(selectedReporte)}
-          onSendWhatsApp={() => enviarReportePorWhatsApp(selectedReporte)}
           onFirmaGuardada={() => {
             fetchReportes();
           }}

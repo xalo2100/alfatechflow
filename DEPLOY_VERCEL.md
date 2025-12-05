@@ -1,82 +1,57 @@
-# 🚀 Guía Rápida: Subir a Vercel desde aquí
+# Guía de Despliegue en Vercel
 
-## 📋 PASO 1: Inicializar Git (si no está hecho)
+Sigue estos pasos para subir tu aplicación a producción usando Vercel.
 
-```bash
-cd /Users/gonzalo/Documents/alfatechflow-hosting-basico
+## 1. Preparación
 
-# Inicializar git
-git init
+Asegúrate de que tu proyecto esté subido a un repositorio de GitHub (o GitLab/Bitbucket).
 
-# Verificar que .gitignore existe
-# (Ya debería existir, pero verifica)
-```
+## 2. Importar Proyecto en Vercel
 
-## 📋 PASO 2: Subir a GitHub
+1.  Inicia sesión en [Vercel](https://vercel.com).
+2.  Haz clic en **"Add New..."** -> **"Project"**.
+3.  Selecciona tu repositorio de GitHub (`alfatechflow-hosting-basico` o el nombre que tenga).
+4.  Haz clic en **"Import"**.
 
-### Opción A: Usando Terminal (Recomendado)
+## 3. Configuración del Proyecto
 
-```bash
-# 1. Agregar todos los archivos
-git add .
+En la pantalla de configuración ("Configure Project"):
 
-# 2. Hacer commit
-git commit -m "Initial commit - AlfaTechFlow"
+*   **Framework Preset:** Next.js (debería detectarse automáticamente).
+*   **Root Directory:** `./` (déjalo como está).
+*   **Build Command:** `npm run build` (o `next build`).
+*   **Install Command:** `npm install`.
 
-# 3. Conectar con GitHub (REEMPLAZA TU_USUARIO con tu usuario de GitHub)
-git remote add origin https://github.com/TU_USUARIO/alfatechflow.git
+## 4. Variables de Entorno (Environment Variables)
 
-# 4. Subir el código
-git branch -M main
-git push -u origin main
-```
+**IMPORTANTE:** Debes agregar las variables de entorno para que la aplicación funcione correctamente. Despliega la sección **"Environment Variables"** y agrega las siguientes (copia los valores de tu archivo `.env.local`):
 
-**⚠️ IMPORTANTE:**
-- Primero crea el repositorio en GitHub (https://github.com/new)
-- Reemplaza `TU_USUARIO` con tu usuario real de GitHub
-- Si el repositorio no existe, créalo primero
+| Nombre (Key) | Valor (Value) |
+| :--- | :--- |
+| `NEXT_PUBLIC_SUPABASE_URL` | *Tu URL de Supabase* |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | *Tu Anon Key de Supabase* |
+| `SUPABASE_SERVICE_ROLE_KEY` | *Tu Service Role Key de Supabase* |
+| `RESEND_API_KEY` | *Tu API Key de Resend* |
+| `GEMINI_API_KEY` | *Tu API Key de Google Gemini* |
+| `PIPEDRIVE_API_TOKEN` | *Tu Token de Pipedrive (si usas)* |
+| `PIPEDRIVE_COMPANY_DOMAIN` | *Tu Dominio de Pipedrive (si usas)* |
 
-### Opción B: Usando GitHub Desktop
+> **Nota:** Asegúrate de no incluir espacios extra al copiar las claves.
 
-1. Descarga: https://desktop.github.com/
-2. Instala y abre
-3. File → Add Local Repository
-4. Selecciona: `/Users/gonzalo/Documents/alfatechflow-hosting-basico`
-5. Publish repository
+## 5. Desplegar
 
-## 📋 PASO 3: Conectar Vercel
+1.  Haz clic en **"Deploy"**.
+2.  Espera a que termine el proceso de construcción (Build).
+3.  Si todo sale bien, verás una pantalla de "Congratulations!".
 
-1. Ve a: https://vercel.com
-2. Sign Up → Continue with GitHub
-3. Add New Project
-4. Selecciona tu repositorio `alfatechflow`
-5. Click en Import
+## 6. Verificación
 
-## 📋 PASO 4: Configurar Variables de Entorno en Vercel
-
-En la página de configuración del proyecto, agrega estas variables:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_APP_URL`
-- `RESEND_API_KEY`
-- `ENCRYPTION_KEY`
-- `GEMINI_API_KEY` (opcional)
-
-## 📋 PASO 5: Deploy
-
-Click en "Deploy" y espera 2-3 minutos.
-
-¡Listo! Tu app estará en: `https://tu-proyecto.vercel.app`
+Haz clic en la imagen de vista previa o en el botón **"Visit"** para ver tu aplicación en vivo.
+Prueba iniciar sesión y generar un reporte para asegurarte de que la conexión con Supabase y las APIs funcione correctamente.
 
 ---
 
-## 🔧 Script Automático
+### Solución de Problemas Comunes
 
-Si quieres, puedo crear un script que haga todo esto automáticamente.
-
-
-
-
-
+*   **Error 500 en API:** Generalmente significa que falta una variable de entorno (como la `SUPABASE_SERVICE_ROLE_KEY`). Revisa la configuración en Vercel -> Settings -> Environment Variables.
+*   **Estilos rotos:** Asegúrate de que `tailwind.config.ts` esté correctamente configurado (ya debería estarlo).

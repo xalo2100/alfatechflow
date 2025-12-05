@@ -65,7 +65,7 @@ export default function PreviewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
       {/* Navbar */}
       <nav className="border-b bg-white shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">

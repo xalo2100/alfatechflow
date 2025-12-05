@@ -82,7 +82,7 @@ export function BuscarClientePipedrive({
     try {
       const url = `/api/pipedrive/buscar-organizacion?q=${encodeURIComponent(searchQuery)}`;
       console.log(`[FRONTEND] 🔗 URL: ${url}`);
-      
+
       const response = await fetch(url);
 
       console.log(`[FRONTEND] 📡 Status: ${response.status}`);
@@ -98,14 +98,14 @@ export function BuscarClientePipedrive({
       const data = await response.json();
       console.log(`[FRONTEND] 📊 Respuesta completa:`, JSON.stringify(data, null, 2));
       console.log(`[FRONTEND] 📊 Resultados encontrados: ${data.resultados?.length || 0}`);
-      
+
       const resultadosArray = data.resultados || [];
       console.log(`[FRONTEND] 📋 Array de resultados:`, resultadosArray);
-      
+
       setResultados(resultadosArray);
       const tieneResultados = resultadosArray.length > 0;
       setMostrarResultados(tieneResultados);
-      
+
       if (!tieneResultados) {
         console.warn(`[FRONTEND] ⚠️ No se encontraron resultados para: "${searchQuery}"`);
         console.warn(`[FRONTEND] ⚠️ Respuesta recibida:`, data);
@@ -216,14 +216,14 @@ export function BuscarClientePipedrive({
                   className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors"
                 >
                   <div className="flex flex-col">
-                    <div className="font-semibold text-sm">{cliente.name}</div>
+                    <div className="font-semibold text-sm text-gray-900">{cliente.name}</div>
                     {cliente.formulario.rut && (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-gray-500">
                         RUT: {cliente.formulario.rut}
                       </div>
                     )}
                     {cliente.formulario.email_cliente && (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-gray-500">
                         {cliente.formulario.email_cliente}
                       </div>
                     )}

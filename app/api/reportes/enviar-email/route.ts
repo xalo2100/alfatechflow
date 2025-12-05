@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { sendEmail } from "@/lib/services/emailService";
+
 export async function POST(request: NextRequest) {
   try {
-    const { reporteId, emailDestino } = await request.json();
+    const { reporteId, emailDestino, empresaId } = await request.json();
 
     if (!reporteId || !emailDestino) {
       return NextResponse.json(
@@ -14,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    
+
     // Obtener el reporte completo
     const { data: reporte, error: reporteError } = await supabase
       .from("reportes")
@@ -40,28 +42,115 @@ export async function POST(request: NextRequest) {
       reporteData = {};
     }
 
-    // Generar HTML del email
     const htmlEmail = await generarHTMLReporte(reporte, reporteData);
 
-    // Enviar email usando Resend o nodemailer
-    // Por ahora, usaremos una API route que puede usar Resend
-    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: emailDestino,
-        subject: `Reporte Técnico N° ${reporte.ticket_id} - Alfapack SpA`,
-        html: htmlEmail,
-        from: "Soporte Técnico Alfapack <soportetecnico@alfapack.cl>",
-      }),
-    });
+    // Obtener configuración para el PDF
+    let appConfig: any = await obtenerConfiguracionApp();
 
-    if (!emailResponse.ok) {
-      const errorData = await emailResponse.json();
-      throw new Error(errorData.error || "Error al enviar email");
+    // Si hay empresaId, intentar obtener datos de la empresa específica
+    if (empresaId) {
+      try {
+        const adminClient = await createAdminClient();
+        const { data: empresa, error: empresaError } = await adminClient
+          .from("empresas")
+          .select("nombre, logo_url")
+          .eq("id", empresaId)
+          .single();
+
+        if (!empresaError && empresa) {
+          console.log(`Usando configuración de empresa: ${empresa.nombre}`);
+          appConfig = {
+            nombre: empresa.nombre,
+            logo: empresa.logo_url || appConfig.logo
+          };
+        }
+      } catch (e) {
+        console.error("Error obteniendo datos de empresa:", e);
+      }
     }
 
-    return NextResponse.json({ success: true, message: "Email enviado correctamente" });
+    // Pre-procesar logo si es URL para que jsPDF pueda usarlo (Server-side)
+    if (appConfig?.logo && appConfig.logo.startsWith('http')) {
+      try {
+        console.log('Descargando logo para PDF:', appConfig.logo);
+        const response = await fetch(appConfig.logo);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const base64 = buffer.toString('base64');
+          const mimeType = response.headers.get('content-type') || 'image/png';
+          appConfig.logo = `data:${mimeType};base64,${base64}`;
+          console.log('Logo convertido a base64 exitosamente');
+        } else {
+          console.warn('Error descargando logo, status:', response.status);
+        }
+      } catch (e) {
+        console.error('Error procesando logo para PDF:', e);
+      }
+    }
+
+    // Generar PDF para adjuntar
+    let pdfAttachment = null;
+    try {
+      console.log('Intentando generar PDF para adjuntar...');
+      const { generarPDFDirecto } = await import('@/lib/pdf/generar-pdf-directo');
+      // Ahora devuelve ArrayBuffer directamente
+      const pdfArrayBuffer = generarPDFDirecto(reporte, appConfig);
+      console.log('PDF generado, tamaño ArrayBuffer:', pdfArrayBuffer.byteLength);
+
+      const buffer = Buffer.from(pdfArrayBuffer);
+
+      if (buffer.length > 0) {
+        pdfAttachment = {
+          filename: `Reporte_Tecnico_${reporte.ticket_id}.pdf`,
+          content: buffer,
+        };
+        console.log('Adjunto PDF preparado correctamente');
+      }
+    } catch (pdfError) {
+      console.error('Error generando PDF para adjuntar:', pdfError);
+    }
+
+    // Generar cuerpo formal del email (Texto simple + HTML básico)
+    const nombreCliente = reporteData.responsable || reporte.ticket?.cliente_nombre || "Cliente";
+    const numeroReporte = reporte.ticket_id;
+
+    const formalEmailHtml = `
+      <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <p>Estimado/a <strong>${nombreCliente}</strong>,</p>
+        <p>Junto con saludar, adjuntamos el <strong>Reporte Técnico N° ${numeroReporte}</strong> con el detalle de los trabajos realizados.</p>
+        <p>Quedamos atentos a cualquier duda o consulta.</p>
+        <br>
+        <p>Atentamente,</p>
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+          <p style="margin: 0; font-weight: bold; color: #ff6600;">Soporte Técnico Alfapack SpA</p>
+          <p style="margin: 5px 0; font-size: 14px;">
+            <a href="mailto:soportetecnico@alfapack.cl" style="color: #666; text-decoration: none;">soportetecnico@alfapack.cl</a><br>
+            Tel: +56 2323 33 610
+          </p>
+        </div>
+      </div>
+    `;
+
+    // Enviar email usando el servicio directamente
+    const emailOptions: any = {
+      to: emailDestino,
+      subject: `Reporte Técnico N° ${reporte.ticket_id} - Alfapack SpA`,
+      html: formalEmailHtml,
+      from: "Soporte Técnico Alfapack <soportetecnico@alfapack.cl>",
+    };
+
+    // Agregar adjunto si se generó correctamente
+    if (pdfAttachment) {
+      emailOptions.attachments = [pdfAttachment];
+      console.log('Enviando email con adjunto PDF');
+    } else {
+      console.log('Enviando email SIN adjunto PDF');
+    }
+
+    const result = await sendEmail(emailOptions);
+
+    return NextResponse.json({ success: true, message: "Email enviado correctamente", id: result.id });
   } catch (error: any) {
     console.error("Error enviando email:", error);
     return NextResponse.json(
@@ -76,19 +165,19 @@ async function obtenerConfiguracionApp() {
     const adminClient = await createAdminClient();
     const { data: configNombre } = await adminClient
       .from("configuraciones")
-      .select("valor")
+      .select("valor, valor_encriptado")
       .eq("clave", "app_nombre")
       .maybeSingle();
-    
+
     const { data: configLogo } = await adminClient
       .from("configuraciones")
-      .select("valor")
+      .select("valor, valor_encriptado")
       .eq("clave", "app_logo")
       .maybeSingle();
 
     return {
-      nombre: configNombre?.valor || "α pack - Alfapack SpA",
-      logo: configLogo?.valor || null,
+      nombre: configNombre?.valor || configNombre?.valor_encriptado || "α pack - Alfapack SpA",
+      logo: configLogo?.valor || configLogo?.valor_encriptado || null,
     };
   } catch (error) {
     console.error("Error obteniendo configuración:", error);
@@ -138,51 +227,54 @@ async function generarHTMLReporte(reporte: any, reporteData: any): Promise<strin
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 3px solid #ff6600;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #ff6600;
     }
     .logo-section {
       flex: 1;
     }
     .logo-text {
-      font-size: 28px;
+      font-size: 18px;
       font-weight: bold;
       color: #ff6600;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .company-info {
-      font-size: 12px;
+      font-size: 10px;
       color: #666;
-      line-height: 1.8;
+      line-height: 1.6;
     }
     .reporte-num {
       background-color: #ff6600;
       color: white;
-      padding: 15px 25px;
-      border-radius: 5px;
-      text-align: right;
+      padding: 12px 20px;
+      border-radius: 4px;
+      text-align: center;
+      min-width: 140px;
     }
     .reporte-num-title {
-      font-size: 14px;
+      font-size: 11px;
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
     }
     .reporte-num-value {
-      font-size: 32px;
+      font-size: 24px;
       font-weight: bold;
     }
     .section {
       margin-bottom: 25px;
     }
     .section-title {
-      background-color: #000;
+      background-color: #3C3C3C;
       color: white;
       padding: 10px 15px;
       font-weight: bold;
-      font-size: 14px;
-      margin-bottom: 15px;
-      border-radius: 3px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      border-radius: 0px;
+      letter-spacing: 0.5px;
     }
     .section-content {
       background-color: #f9f9f9;
@@ -193,24 +285,26 @@ async function generarHTMLReporte(reporte: any, reporteData: any): Promise<strin
     .info-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 15px;
+      gap: 10px;
       margin-bottom: 10px;
     }
     .info-item {
-      padding: 8px;
-      background-color: white;
+      padding: 10px;
+      background-color: #f5f5f5;
       border-radius: 3px;
+      border: 1px solid #e0e0e0;
     }
     .info-label {
-      font-size: 11px;
+      font-size: 10px;
       color: #666;
-      margin-bottom: 3px;
-      font-weight: bold;
+      margin-bottom: 4px;
+      font-weight: normal;
+      text-transform: uppercase;
     }
     .info-value {
-      font-size: 13px;
-      color: #333;
-      font-weight: 500;
+      font-size: 12px;
+      color: #000;
+      font-weight: bold;
     }
     .text-area {
       min-height: 80px;
@@ -226,17 +320,20 @@ async function generarHTMLReporte(reporte: any, reporteData: any): Promise<strin
       margin-top: 10px;
     }
     .table th {
-      background-color: #000;
+      background-color: #3C3C3C;
       color: white;
-      padding: 8px;
+      padding: 10px;
       text-align: left;
       font-size: 11px;
       font-weight: bold;
+      letter-spacing: 0.3px;
     }
     .table td {
       padding: 8px;
       border: 1px solid #ddd;
       font-size: 12px;
+      color: #333;
+      background-color: white;
     }
     .table tr:nth-child(even) {
       background-color: #f9f9f9;
@@ -360,7 +457,7 @@ function generarSeccionCliente(reporte: any, reporteData: any): string {
 
 function generarSeccionEquipo(reporteData: any): string {
   if (!reporteData.equipos || reporteData.equipos.length === 0) return "";
-  
+
   const rows = reporteData.equipos.map((eq: any) => `
     <tr>
       <td>${eq.maquina || ""}</td>
@@ -394,7 +491,7 @@ function generarSeccionEquipo(reporteData: any): string {
 
 function generarSeccionTipoServicio(reporteData: any): string {
   if (!reporteData.tipo_servicio || reporteData.tipo_servicio.length === 0) return "";
-  
+
   const tipos = {
     garantia: "GARANTÍA",
     contrato: "CONTRATO",
@@ -407,7 +504,7 @@ function generarSeccionTipoServicio(reporteData: any): string {
     recuperacion: "RECUPERACIÓN"
   };
 
-  const serviciosMarcados = Array.isArray(reporteData.tipo_servicio) 
+  const serviciosMarcados = Array.isArray(reporteData.tipo_servicio)
     ? reporteData.tipo_servicio.map((t: string) => tipos[t as keyof typeof tipos] || t).join(", ")
     : tipos[reporteData.tipo_servicio as keyof typeof tipos] || reporteData.tipo_servicio;
 
@@ -459,7 +556,7 @@ function generarSeccionObservacion(reporteData: any): string {
 
 function generarSeccionRepuestos(reporte: any, reporteData: any): string {
   if (!reporteData.repuestos || reporteData.repuestos.length === 0) return "";
-  
+
   const rows = reporteData.repuestos.map((rep: any) => `
     <tr>
       <td>${rep.codigo || ""}</td>
@@ -493,10 +590,10 @@ function generarSeccionRepuestos(reporte: any, reporteData: any): string {
 
 function generarSeccionTiempos(reporteData: any): string {
   if (!reporteData.hora_entrada && !reporteData.hora_salida && !reporteData.horas_trabajo) return "";
-  
+
   const totalHoras = (
-    (parseFloat(reporteData.horas_trabajo || 0) + parseFloat(reporteData.horas_espera || 0) + 
-     parseFloat(reporteData.tiempo_ida || 0) + parseFloat(reporteData.tiempo_regreso || 0))
+    (parseFloat(reporteData.horas_trabajo || 0) + parseFloat(reporteData.horas_espera || 0) +
+      parseFloat(reporteData.tiempo_ida || 0) + parseFloat(reporteData.tiempo_regreso || 0))
   ).toFixed(2);
 
   return `
@@ -543,22 +640,33 @@ function generarSeccionFirmas(reporte: any, reporteData: any): string {
     <div class="footer">
       <div class="signature-box">
         <div class="signature-label">NOMBRE Y FIRMA TÉCNICO</div>
-        <div style="margin-top: 10px;">${reporte.tecnico?.nombre_completo || "N/A"}</div>
+        <div style="margin-top: 10px; font-weight: bold; color: #333;">${reporte.tecnico?.nombre_completo || "N/A"}</div>
         ${reporteData.firma_tecnico && reporteData.firma_tecnico.imagen ? `
         <div style="margin-top: 15px;">
           <div style="font-size: 10px; color: #666; margin-bottom: 5px;">Firmado por: ${reporteData.firma_tecnico.nombre}</div>
-          <img src="${reporteData.firma_tecnico.imagen}" alt="Firma del técnico" style="max-width: 200px; max-height: 60px; border: 1px solid #ddd; padding: 3px; background: white;" />
+          <img src="${reporteData.firma_tecnico.imagen}" 
+               alt="Firma del técnico" 
+               style="max-width: 200px; max-height: 80px; width: auto; height: auto; border: 1px solid #ddd; padding: 5px; background: white; display: block;" />
         </div>
-        ` : ""}
+        ` : `
+        <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 5px;"></div>
+        `}
       </div>
       <div class="signature-box">
         <div class="signature-label">NOMBRE Y FIRMA CLIENTE</div>
+        ${reporteData.firma_cliente && reporteData.firma_cliente.nombre ? `
+        <div style="margin-top: 10px; font-weight: bold; color: #333;">${reporteData.firma_cliente.nombre}</div>
+        ` : ''}
         ${reporteData.firma_cliente && reporteData.firma_cliente.imagen ? `
         <div style="margin-top: 15px;">
           <div style="font-size: 10px; color: #666; margin-bottom: 5px;">Firmado por: ${reporteData.firma_cliente.nombre}</div>
-          <img src="${reporteData.firma_cliente.imagen}" alt="Firma del cliente" style="max-width: 200px; max-height: 60px; border: 1px solid #ddd; padding: 3px; background: white;" />
+          <img src="${reporteData.firma_cliente.imagen}" 
+               alt="Firma del cliente" 
+               style="max-width: 200px; max-height: 80px; width: auto; height: auto; border: 1px solid #ddd; padding: 5px; background: white; display: block;" />
         </div>
-        ` : ""}
+        ` : `
+        <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 5px;"></div>
+        `}
       </div>
     </div>
     <div style="margin-top: 20px; text-align: center; font-size: 11px; color: #666;">
@@ -566,5 +674,3 @@ function generarSeccionFirmas(reporte: any, reporteData: any): string {
     </div>
   `;
 }
-
-

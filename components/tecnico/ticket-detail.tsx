@@ -325,59 +325,42 @@ export function TicketDetail({
     }
   };
 
-  const enviarReportePorWhatsApp = async (reporte: any) => {
+  const generarPDFBlob = async (reporte: any): Promise<Blob | null> => {
     try {
-      // Obtener datos del reporte
-      let reporteData: any = {};
-      try {
-        reporteData = JSON.parse(reporte.reporte_ia as string);
-      } catch {
-        reporteData = {};
+      console.log('[PDF] Generando PDF directamente con jsPDF (sin html2canvas)');
+      const { generarPDFDirecto } = await import('@/lib/pdf/generar-pdf-directo');
+
+      let config = getAppConfig();
+
+      // Si el reporte tiene empresa_id, buscar la info de la empresa
+      if (reporte.empresa_id) {
+        const { data: empresa } = await supabase
+          .from("empresas")
+          .select("nombre, logo_url")
+          .eq("id", reporte.empresa_id)
+          .single();
+
+        if (empresa) {
+          config = {
+            ...config,
+            nombre: empresa.nombre,
+            logo: empresa.logo_url || config.logo
+          };
+        }
       }
 
-      // Obtener número de celular del cliente
-      const celular = reporteData.celular ||
-        (ticket as any).datos_cliente?.celular ||
-        "";
-
-      if (!celular || celular.trim() === "") {
-        alert("⚠️ No se encontró número de celular del cliente. Por favor, agregue el número en los datos del reporte.");
-        return;
-      }
-
-      // Limpiar número (quitar espacios, guiones, paréntesis)
-      const numeroLimpio = celular.replace(/[\s\-\(\)]/g, "");
-      // Asegurar que empiece con código de país (Chile: +56)
-      const numeroFormateado = numeroLimpio.startsWith("56")
-        ? `+${numeroLimpio}`
-        : numeroLimpio.startsWith("+56")
-          ? numeroLimpio
-          : `+56${numeroLimpio}`;
-
-      // Mensaje para WhatsApp
-      const clienteNombre = reporteData.razon_social || ticket.cliente_nombre || "Cliente";
-      const mensaje = `Hola! Te envío el Reporte Técnico N° ${reporte.ticket_id} de ${clienteNombre}.\n\nPor favor, revisa el documento adjunto.`;
-
-      // Crear enlace de WhatsApp
-      const mensajeCodificado = encodeURIComponent(mensaje);
-      const whatsappUrl = `https://wa.me/${numeroFormateado.replace(/\+/g, "")}?text=${mensajeCodificado}`;
-
-      // Abrir WhatsApp
-      window.open(whatsappUrl, "_blank");
-
-      // Descargar el PDF automáticamente para que el usuario lo pueda adjuntar
-      await descargarReportePDF(reporte);
-
-      // Mensaje final
-      setTimeout(() => {
-        alert("✅ WhatsApp abierto. El PDF se descargó automáticamente. Por favor, adjunta el PDF en la conversación de WhatsApp.");
-      }, 1000);
-
+      const arrayBuffer = generarPDFDirecto(reporte, config);
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      console.log('[PDF] PDF generado exitosamente, tamaño:', blob.size, 'bytes');
+      return blob;
     } catch (error) {
-      console.error('Error enviando por WhatsApp:', error);
-      alert('Error al preparar el envío por WhatsApp: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      console.error('[PDF] Error generando PDF:', error);
+      alert('Error al generar el PDF: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      return null;
     }
   };
+
+
 
   const cambiarEstado = async (nuevoEstado: Ticket["estado"]) => {
     setLoading(true);
@@ -391,9 +374,16 @@ export function TicketDetail({
       }
 
       // Para otros estados, cambiar normalmente
+      const updateData: any = { estado: nuevoEstado };
+
+      // Si se inicia el trabajo, registrar hora de inicio
+      if (nuevoEstado === "en_proceso") {
+        updateData.hora_inicio = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from("tickets")
-        .update({ estado: nuevoEstado })
+        .update(updateData)
         .eq("id", ticket.id);
 
       if (error) throw error;
@@ -490,7 +480,11 @@ export function TicketDetail({
             {ticket.cliente_contacto && (
               <div>
                 <p className="font-semibold text-sm text-muted-foreground">Contacto</p>
-                <p>{ticket.cliente_contacto}</p>
+                <p>
+                  {typeof ticket.cliente_contacto === 'object' && ticket.cliente_contacto !== null
+                    ? (ticket.cliente_contacto as any).value || JSON.stringify(ticket.cliente_contacto)
+                    : ticket.cliente_contacto}
+                </p>
               </div>
             )}
             {ticket.dispositivo_modelo && (
@@ -637,11 +631,17 @@ export function TicketDetail({
             setTimeout(() => ventana.print(), 250);
           }}
           onDownload={async () => {
-            // Función para descargar PDF
-            await descargarReportePDF(reporte);
-          }}
-          onSendWhatsApp={async () => {
-            await enviarReportePorWhatsApp(reporte);
+            const blob = await generarPDFBlob(reporte);
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `Reporte_Tecnico_${reporte.ticket_id}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
           }}
           onFirmaGuardada={() => {
             buscarReporte();

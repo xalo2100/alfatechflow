@@ -3,7 +3,7 @@
  * Si hay configuraciones guardadas en la DB, se usan en lugar de variables de entorno
  */
 
-import { createAdminClientSync } from "./admin";
+import { createClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/encryption";
 
 interface SupabaseConfig {
@@ -20,8 +20,21 @@ interface SupabaseConfig {
  */
 export async function getSupabaseConfigFromDB(): Promise<SupabaseConfig | null> {
   try {
-    // Usar versión síncrona para evitar dependencia circular
-    const adminClient = createAdminClientSync();
+    // Usar cliente directo con variables de entorno para evitar dependencia circular
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.warn("Variables de entorno de Supabase no configuradas para obtener configuración desde DB");
+      return null;
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
     // Obtener configuraciones desde la base de datos
     const [urlConfig, anonKeyConfig, serviceKeyConfig] = await Promise.all([
@@ -46,13 +59,13 @@ export async function getSupabaseConfigFromDB(): Promise<SupabaseConfig | null> 
     if (urlConfig.error || anonKeyConfig.error || serviceKeyConfig.error) {
       const errors = [urlConfig.error, anonKeyConfig.error, serviceKeyConfig.error].filter(Boolean);
       const firstError = errors[0];
-      
+
       // Si el error indica que la tabla no existe o problemas de permisos, retornar null silenciosamente
       if (firstError?.code === 'PGRST116' || firstError?.message?.includes('relation') || firstError?.message?.includes('permission')) {
         console.warn("No se puede acceder a la tabla configuraciones. Usando variables de entorno.");
         return null;
       }
-      
+
       // Para otros errores, también retornar null (fallback a variables de entorno)
       console.warn("Error obteniendo configuración desde DB, usando variables de entorno:", firstError?.message);
       return null;

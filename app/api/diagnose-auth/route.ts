@@ -95,7 +95,7 @@ export async function GET() {
             log(`      Email Confirmed At: ${gsanchez.email_confirmed_at}`);
             log(`      Confirmed At: ${gsanchez.confirmed_at}`);
             log(`      Last Sign In: ${gsanchez.last_sign_in_at}`);
-            log(`      Banned: ${gsanchez.banned_until}`);
+            log(`      Banned: ${(gsanchez as any).banned_until}`);
             log(`      Aud: ${gsanchez.aud}`);
             log(`      Recovery Sent At: ${gsanchez.recovery_sent_at}`);
 

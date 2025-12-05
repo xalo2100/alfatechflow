@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Clock, DollarSign, CheckCircle2, XCircle, Pen, MessageCircle } from "lucide-react";
+import { Download, FileText, Clock, DollarSign, CheckCircle2, XCircle, Pen } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useTimezone } from "@/lib/use-timezone";
@@ -33,7 +33,6 @@ interface ReporteDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onExport: () => void;
   onDownload?: () => void;
-  onSendWhatsApp?: () => void;
   onFirmaGuardada?: () => void;
   userRole?: string;
   tecnicoId?: string;
@@ -46,7 +45,6 @@ export function ReporteDetailDialog({
   onOpenChange,
   onExport,
   onDownload,
-  onSendWhatsApp,
   onFirmaGuardada,
   userRole,
   tecnicoId,
@@ -56,7 +54,7 @@ export function ReporteDetailDialog({
   const [showFirmaTecnicoDialog, setShowFirmaTecnicoDialog] = useState(false);
   const { formatDate } = useTimezone();
   const router = useRouter();
-  
+
   let reporteData: any = {};
   try {
     reporteData = JSON.parse(reporte.reporte_ia as string);
@@ -69,7 +67,7 @@ export function ReporteDetailDialog({
   const puedeFirmarCliente = userRole === "tecnico" && !tieneFirmaCliente;
   const puedeFirmarTecnico = userRole === "tecnico" && !tieneFirmaTecnico && tecnicoId && tecnicoNombre;
   const emailLeido = reporteData.lectura_email && reporteData.lectura_email.leido;
-  const fechaLectura = emailLeido && reporteData.lectura_email.fecha_lectura 
+  const fechaLectura = emailLeido && reporteData.lectura_email.fecha_lectura
     ? formatDate(new Date(reporteData.lectura_email.fecha_lectura), "PPp", es)
     : null;
 
@@ -108,12 +106,6 @@ export function ReporteDetailDialog({
                   Descargar PDF
                 </Button>
               )}
-              {onSendWhatsApp && (
-                <Button onClick={onSendWhatsApp} variant="default" className="bg-green-600 hover:bg-green-700">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Enviar por WhatsApp
-                </Button>
-              )}
               <Button onClick={onExport} variant="outline">
                 <FileText className="h-4 w-4 mr-2" />
                 Imprimir
@@ -125,31 +117,31 @@ export function ReporteDetailDialog({
         <div className="space-y-6 mt-4">
           {/* Información del Cliente */}
           <div className="bg-gray-50 p-4 rounded-md border">
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <h3 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
               <FileText className="h-4 w-4" />
               Información del Cliente
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-muted-foreground">Cliente: </span>
-                <span className="font-medium">{reporte.ticket?.cliente_nombre || "N/A"}</span>
+                <span className="text-gray-700 font-medium">Cliente: </span>
+                <span className="font-semibold text-gray-900">{reporte.ticket?.cliente_nombre || "N/A"}</span>
               </div>
               {reporte.ticket?.cliente_contacto && (
                 <div>
-                  <span className="text-muted-foreground">Contacto: </span>
-                  <span>{reporte.ticket.cliente_contacto}</span>
+                  <span className="text-gray-700 font-medium">Contacto: </span>
+                  <span className="text-gray-900">{reporte.ticket.cliente_contacto}</span>
                 </div>
               )}
               {reporte.ticket?.dispositivo_modelo && (
                 <div>
-                  <span className="text-muted-foreground">Equipo: </span>
-                  <span>{reporte.ticket.dispositivo_modelo}</span>
+                  <span className="text-gray-700 font-medium">Equipo: </span>
+                  <span className="text-gray-900">{reporte.ticket.dispositivo_modelo}</span>
                 </div>
               )}
               {reporte.tecnico && (
                 <div>
-                  <span className="text-muted-foreground">Técnico: </span>
-                  <span>{reporte.tecnico.nombre_completo}</span>
+                  <span className="text-gray-700 font-medium">Técnico: </span>
+                  <span className="text-gray-900">{reporte.tecnico.nombre_completo}</span>
                 </div>
               )}
             </div>
@@ -158,35 +150,35 @@ export function ReporteDetailDialog({
           {/* Información del Servicio */}
           {(reporteData.tipo_servicio || reporteData.horas_trabajo || reporteData.horas_espera || reporteData.facturable !== undefined || reporte.costo_reparacion) && (
             <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <h3 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
                 <FileText className="h-4 w-4" />
                 Información del Servicio
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 {reporteData.tipo_servicio && (
                   <div>
-                    <span className="text-muted-foreground">Tipo de Servicio: </span>
-                    <Badge variant="outline" className="ml-1">
+                    <span className="text-gray-700 font-medium">Tipo de Servicio: </span>
+                    <Badge variant="outline" className="ml-1 border-gray-600 text-gray-900">
                       {reporteData.tipo_servicio === "reparacion" ? "Reparación" :
-                       reporteData.tipo_servicio === "garantia" ? "Garantía" :
-                       reporteData.tipo_servicio === "mantenimiento" ? "Mantenimiento" :
-                       reporteData.tipo_servicio === "visita_cortesia" ? "Visita de Cortesía" :
-                       reporteData.tipo_servicio}
+                        reporteData.tipo_servicio === "garantia" ? "Garantía" :
+                          reporteData.tipo_servicio === "mantenimiento" ? "Mantenimiento" :
+                            reporteData.tipo_servicio === "visita_cortesia" ? "Visita de Cortesía" :
+                              reporteData.tipo_servicio}
                     </Badge>
                   </div>
                 )}
                 {reporteData.horas_trabajo && (
                   <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Horas Trabajo: </span>
-                    <span className="font-medium">{reporteData.horas_trabajo}h</span>
+                    <Clock className="h-3 w-3 text-gray-600" />
+                    <span className="text-gray-700 font-medium">Horas Trabajo: </span>
+                    <span className="font-semibold text-gray-900">{reporteData.horas_trabajo}h</span>
                   </div>
                 )}
                 {reporteData.horas_espera && (
                   <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Horas Espera: </span>
-                    <span className="font-medium">{reporteData.horas_espera}h</span>
+                    <Clock className="h-3 w-3 text-gray-600" />
+                    <span className="text-gray-700 font-medium">Horas Espera: </span>
+                    <span className="font-semibold text-gray-900">{reporteData.horas_espera}h</span>
                   </div>
                 )}
                 {reporteData.facturable !== undefined && (
@@ -196,15 +188,15 @@ export function ReporteDetailDialog({
                     ) : (
                       <XCircle className="h-3 w-3 text-red-600" />
                     )}
-                    <span className="text-muted-foreground">Facturable: </span>
-                    <span className="font-medium">{reporteData.facturable ? "Sí" : "No"}</span>
+                    <span className="text-gray-700 font-medium">Facturable: </span>
+                    <span className="font-semibold text-gray-900">{reporteData.facturable ? "Sí" : "No"}</span>
                   </div>
                 )}
                 {reporte.costo_reparacion && (
                   <div className="flex items-center gap-1">
-                    <DollarSign className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Costo: </span>
-                    <span className="font-medium">${Number(reporte.costo_reparacion).toLocaleString('es-CL')}</span>
+                    <DollarSign className="h-3 w-3 text-gray-600" />
+                    <span className="text-gray-700 font-medium">Costo: </span>
+                    <span className="font-semibold text-gray-900">${Number(reporte.costo_reparacion).toLocaleString('es-CL')}</span>
                   </div>
                 )}
               </div>

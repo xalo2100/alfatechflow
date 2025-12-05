@@ -90,22 +90,30 @@ export async function generarInforme(notasBrutas: string): Promise<{
   detalle_tecnico: string;
   estado_equipo: string;
 }> {
+  console.log(`[GEMINI] 📝 Generando informe para notas: "${notasBrutas.substring(0, 50)}..."`);
+
   const apiKey = await getGeminiApiKey();
   const genAI = new GoogleGenerativeAI(apiKey);
-  // Usar gemini-2.0-flash como default - es el más rápido y eficiente
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  // Usar gemini-2.0-flash - confirmado funcionando en test-connection
+  const modelName = "gemini-2.0-flash";
+  console.log(`[GEMINI] 🤖 Usando modelo: ${modelName}`);
+  const model = genAI.getGenerativeModel({ model: modelName });
 
   const prompt = `${SYSTEM_PROMPT}\n\nNotas del técnico: ${notasBrutas}\n\nGenera el informe en formato JSON.`;
 
   try {
+    console.log(`[GEMINI] 🚀 Enviando solicitud a Gemini...`);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
+    console.log(`[GEMINI] ✅ Respuesta recibida: ${text.substring(0, 100)}...`);
 
     // Extraer JSON de la respuesta
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      console.log(`[GEMINI] ✅ JSON parseado correctamente`);
       return {
         resumen_cliente: parsed.resumen_cliente || "Equipo reparado exitosamente.",
         detalle_tecnico: parsed.detalle_tecnico || notasBrutas,
@@ -114,14 +122,21 @@ export async function generarInforme(notasBrutas: string): Promise<{
     }
 
     // Fallback si no se encuentra JSON
+    console.warn(`[GEMINI] ⚠️ No se encontró JSON en la respuesta, usando fallback`);
     return {
       resumen_cliente: "Equipo reparado exitosamente.",
       detalle_tecnico: text,
       estado_equipo: "Operativo",
     };
-  } catch (error) {
-    console.error("Error generando informe con Gemini:", error);
-    throw new Error("Error al generar el informe. Por favor, intente nuevamente.");
+  } catch (error: any) {
+    console.error("[GEMINI] ❌ Error generando informe:", error);
+    console.error("[GEMINI] ❌ Detalles del error:", {
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      errorDetails: error.errorDetails
+    });
+    throw new Error(`Error al generar el informe: ${error.message || "Error desconocido"}. Por favor, intente nuevamente.`);
   }
 }
 

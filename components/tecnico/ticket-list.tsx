@@ -83,9 +83,28 @@ export function TicketList({
               <p className="text-sm line-clamp-2">{ticket.falla_declarada}</p>
             </div>
             <div className="flex justify-between items-center pt-2 border-t">
-              <p className="text-xs text-muted-foreground">
-                {format(new Date(ticket.created_at), "PPp", { locale: es })}
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(ticket.created_at), "PPp", { locale: es })}
+                </p>
+                <div className="flex items-center gap-1 text-xs">
+                  <Badge className={
+                    ticket.estado === "abierto" ? "bg-gray-200 text-gray-900 text-xs" :
+                      ticket.estado === "asignado" ? "bg-blue-500 text-white text-xs" :
+                        ticket.estado === "en_proceso" ? "bg-yellow-500 text-white text-xs" :
+                          ticket.estado === "espera_repuesto" ? "bg-orange-500 text-white text-xs" :
+                            ticket.estado === "finalizado" ? "bg-green-500 text-white text-xs" :
+                              "bg-purple-500 text-white text-xs"
+                  }>
+                    {ticket.estado === "abierto" ? "Abierto" :
+                      ticket.estado === "asignado" ? "Asignado" :
+                        ticket.estado === "en_proceso" ? "En Proceso" :
+                          ticket.estado === "espera_repuesto" ? "Esperando Repuesto" :
+                            ticket.estado === "finalizado" ? "Finalizado" :
+                              "Entregado"}
+                  </Badge>
+                </div>
+              </div>
               {showAsignar && onAsignar && (
                 <Button
                   size="sm"

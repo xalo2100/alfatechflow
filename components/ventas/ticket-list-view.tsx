@@ -46,6 +46,18 @@ export function TicketListView({ tickets, onViewDetail, onRequestUrgent }: Ticke
     return "ahora";
   };
 
+  const getEstadoLabel = (estado: string) => {
+    const labels: Record<string, string> = {
+      abierto: "Abierto",
+      asignado: "Asignado",
+      en_proceso: "En Proceso",
+      espera_repuesto: "Esperando Repuesto",
+      finalizado: "Finalizado",
+      entregado: "Entregado",
+    };
+    return labels[estado] || estado;
+  };
+
   return (
     <div className="space-y-2">
       {tickets.map((ticket) => (
@@ -107,7 +119,9 @@ export function TicketListView({ tickets, onViewDetail, onRequestUrgent }: Ticke
                   <p className="text-sm line-clamp-2">{ticket.falla_declarada}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                     <Clock className="h-3 w-3" />
-                    <span>{getTimeAgo(new Date(ticket.updated_at || ticket.created_at))}</span>
+                    <span className="font-semibold">{getEstadoLabel(ticket.estado)}</span>
+                    <span>•</span>
+                    <span>actualizado {getTimeAgo(new Date(ticket.updated_at || ticket.created_at))}</span>
                   </div>
                 </div>
               </div>

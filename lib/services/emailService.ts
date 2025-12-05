@@ -8,6 +8,10 @@ interface EmailOptions {
   subject: string;
   html: string;
   from?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+  }>;
 }
 
 interface SendEmailResponse {
@@ -24,7 +28,7 @@ interface SendEmailResponse {
  * @returns Promise con la respuesta de Resend
  */
 export async function sendEmail(options: EmailOptions): Promise<SendEmailResponse> {
-  const { to, subject, html, from = 'Soporte Técnico Alfapack <soportetecnico@alfapack.cl>' } = options;
+  const { to, subject, html, from = 'Soporte Técnico Alfapack <soportetecnico@alfapack.cl>', attachments } = options;
 
   // Intentar obtener la API key desde la base de datos primero, luego desde variables de entorno
   let apiKey: string;
@@ -40,6 +44,22 @@ export async function sendEmail(options: EmailOptions): Promise<SendEmailRespons
   }
 
   try {
+    // Preparar el body del email
+    const emailBody: any = {
+      from,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+    };
+
+    // Agregar attachments si existen (convertir Buffer a base64)
+    if (attachments && attachments.length > 0) {
+      emailBody.attachments = attachments.map(att => ({
+        filename: att.filename,
+        content: att.content.toString('base64'),
+      }));
+    }
+
     // Intentar enviar con el dominio personalizado
     let response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -47,34 +67,40 @@ export async function sendEmail(options: EmailOptions): Promise<SendEmailRespons
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        from,
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(emailBody),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      
+
       // Si el dominio no está verificado, usar dominio de prueba de Resend
       if (error.message && error.message.includes('domain is not verified')) {
         console.warn('⚠️ Dominio no verificado, usando dominio de prueba de Resend');
-        
+
         const fallbackFrom = 'Soporte Técnico Alfapack <onboarding@resend.dev>';
+
+        const fallbackBody: any = {
+          from: fallbackFrom,
+          to: Array.isArray(to) ? to : [to],
+          subject,
+          html,
+        };
+
+        // Incluir attachments también en el fallback
+        if (attachments && attachments.length > 0) {
+          fallbackBody.attachments = attachments.map(att => ({
+            filename: att.filename,
+            content: att.content.toString('base64'),
+          }));
+        }
+
         response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({
-            from: fallbackFrom,
-            to: Array.isArray(to) ? to : [to],
-            subject,
-            html,
-          }),
+          body: JSON.stringify(fallbackBody),
         });
 
         if (!response.ok) {
@@ -88,7 +114,7 @@ export async function sendEmail(options: EmailOptions): Promise<SendEmailRespons
           warning: 'Email enviado desde dominio de prueba de Resend. Para usar soportetecnico@alfapack.cl, verifica el dominio en https://resend.com/domains'
         };
       }
-      
+
       throw new Error(error.message || 'Error al enviar el correo');
     }
 
