@@ -9,7 +9,7 @@ let envContent = '';
 
 try {
     envContent = fs.readFileSync(envPath, 'utf-8');
-} catch (e) {
+} catch (e: any) {
     console.error("Could not read .env.local", e.message);
     // Fallback to example if local not found (unlikely)
     try {

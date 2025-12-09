@@ -1,4 +1,3 @@
-```typescript
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decrypt } from "@/lib/encryption";
@@ -25,7 +24,7 @@ export async function getGeminiApiKey(): Promise<string> {
       }
     });
 
-    console.log(`[GEMINI] 🔑 Obteniendo API key desde base de datos...`);
+    console.log(`[GEMINI] Obteniendo API key desde base de datos...`);
 
     // Intentar obtener desde la base de datos
     const { data: config, error: configError } = await supabase
@@ -44,7 +43,7 @@ export async function getGeminiApiKey(): Promise<string> {
         return envKey;
       }
 
-      throw new Error(`Error al acceder a la configuración: ${ configError.message }.`);
+      throw new Error(`Error al acceder a la configuración: ${configError.message}.`);
     }
 
     if (config?.valor_encriptado) {
@@ -63,7 +62,7 @@ export async function getGeminiApiKey(): Promise<string> {
           console.log("✅ Usando API key de Gemini de variable de entorno");
           return envKey;
         }
-        throw new Error(`Error al desencriptar la API key de Gemini: ${ error.message || "Error desconocido" }. Por favor, vuelve a configurar la API key en el panel de administración.`);
+        throw new Error(`Error al desencriptar la API key de Gemini: ${error.message || "Error desconocido"}. Por favor, vuelve a configurar la API key en el panel de administración.`);
       }
     } else {
       console.warn(`[GEMINI] ⚠️ No se encontró configuración en base de datos`);
@@ -107,17 +106,17 @@ export async function generarInforme(notasBrutas: string): Promise<{
 
   // Usar gemini-2.0-flash - confirmado funcionando en test-connection
   const modelName = "gemini-2.0-flash";
-  console.log(`[GEMINI] 🤖 Usando modelo: ${ modelName } `);
+  console.log(`[GEMINI] 🤖 Usando modelo: ${modelName} `);
   const model = genAI.getGenerativeModel({ model: modelName });
 
-  const prompt = `${ SYSTEM_PROMPT } \n\nNotas del técnico: ${ notasBrutas } \n\nGenera el informe en formato JSON.`;
+  const prompt = `${SYSTEM_PROMPT} \n\nNotas del técnico: ${notasBrutas} \n\nGenera el informe en formato JSON.`;
 
   try {
     console.log(`[GEMINI] 🚀 Enviando solicitud a Gemini...`);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    console.log(`[GEMINI] ✅ Respuesta recibida: ${ text.substring(0, 100) }...`);
+    console.log(`[GEMINI] ✅ Respuesta recibida: ${text.substring(0, 100)}...`);
 
     // Extraer JSON de la respuesta
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -146,7 +145,7 @@ export async function generarInforme(notasBrutas: string): Promise<{
       statusText: error.statusText,
       errorDetails: error.errorDetails
     });
-    throw new Error(`Error al generar el informe: ${ error.message || "Error desconocido" }. Por favor, intente nuevamente.`);
+    throw new Error(`Error al generar el informe: ${error.message || "Error desconocido"}. Por favor, intente nuevamente.`);
   }
 }
 
