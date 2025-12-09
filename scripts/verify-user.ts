@@ -15,7 +15,7 @@ try {
     try {
         envContent = fs.readFileSync(path.resolve(process.cwd(), '.env.local.example'), 'utf-8');
         console.log("Using .env.local.example instead");
-    } catch (e2) {
+    } catch (e2: any) {
         console.error("Could not read .env.local.example", e2.message);
         process.exit(1);
     }
