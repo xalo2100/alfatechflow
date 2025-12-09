@@ -68,10 +68,10 @@ export function ConfigApiDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Limpiar la API key: eliminar espacios, saltos de línea, etc.
     const cleanedKey = apiKey.trim().replace(/\s+/g, "").replace(/\n/g, "");
-    
+
     if (!cleanedKey) {
       setError("La API key es requerida");
       return;
@@ -101,32 +101,21 @@ export function ConfigApiDialog({
         throw new Error(testData.error || "La API key no es válida. Verifica que sea correcta y tenga créditos disponibles.");
       }
 
-      // Si la validación es exitosa, guardar
-      setError("Guardando API key encriptada...");
-      
-      // Encriptar la API key antes de guardarla
-      const encryptedKey = await encrypt(cleanedKey);
+      // Si la validación es exitosa, guardar usando la API SERVER-SIDE
+      // Esto es crucial para que la encriptación use la clave correcta del servidor
+      setError("Guardando API key encriptada (Server-side)...");
 
-      // Obtener el usuario actual para registrar quién hizo el cambio
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
+      const saveResponse = await fetch("/api/admin/save-gemini-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: cleanedKey }),
+      });
 
-      // Guardar o actualizar la configuración
-      const { error: upsertError } = await supabase
-        .from("configuraciones")
-        .upsert(
-          {
-            clave: "gemini_api_key",
-            valor_encriptado: encryptedKey,
-            descripcion: "API Key de Google Gemini para generación de reportes",
-            creado_por: user.id,
-          },
-          {
-            onConflict: "clave",
-          }
-        );
+      const saveData = await saveResponse.json();
 
-      if (upsertError) throw upsertError;
+      if (!saveResponse.ok) {
+        throw new Error(saveData.error || "Error al guardar la configuración en el servidor");
+      }
 
       // Actualizar el estado para reflejar que ahora existe una API key
       setCurrentKeyStatus("exists");

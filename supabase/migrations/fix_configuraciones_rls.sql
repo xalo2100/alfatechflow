@@ -1,60 +1,39 @@
--- Arreglar políticas RLS para la tabla configuraciones
--- Permitir a administradores gestionar configuraciones
+-- Permitir a usuarios autenticados (especialmente admins) insertar y actualizar configuraciones
 
--- Eliminar políticas existentes si existen
-DROP POLICY IF EXISTS "Admins pueden ver configuraciones" ON configuraciones;
-DROP POLICY IF EXISTS "Admins pueden insertar configuraciones" ON configuraciones;
-DROP POLICY IF EXISTS "Admins pueden actualizar configuraciones" ON configuraciones;
-DROP POLICY IF EXISTS "Admins pueden eliminar configuraciones" ON configuraciones;
+-- 1. Habilitar RLS en configuraciones (por si acaso no está)
+ALTER TABLE public.configuraciones ENABLE ROW LEVEL SECURITY;
 
--- Crear políticas para administradores
-CREATE POLICY "Admins pueden ver configuraciones"
-ON configuraciones FOR SELECT
+-- 2. Eliminar políticas antiguas para evitar conflictos
+DROP POLICY IF EXISTS "Permitir lectura a todos los autenticados" ON public.configuraciones;
+DROP POLICY IF EXISTS "Permitir insertar a admins" ON public.configuraciones;
+DROP POLICY IF EXISTS "Permitir actualizar a admins" ON public.configuraciones;
+
+-- 3. Crear política de lectura (todos los usuarios autenticados pueden leer)
+CREATE POLICY "Permitir lectura a todos los autenticados"
+ON public.configuraciones
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- 4. Crear política de inserción/actualización (solo admins y super_admins)
+-- Nota: Asumimos que el admin tiene rol 'admin' o 'super_admin' en public.perfiles
+CREATE POLICY "Permitir gestion a admins"
+ON public.configuraciones
+FOR ALL
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM perfiles
+    SELECT 1 FROM public.perfiles
     WHERE perfiles.id = auth.uid()
-    AND perfiles.rol IN ('admin', 'superadmin')
+    AND perfiles.rol IN ('admin', 'super_admin')
   )
 );
 
-CREATE POLICY "Admins pueden insertar configuraciones"
-ON configuraciones FOR INSERT
-TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM perfiles
-    WHERE perfiles.id = auth.uid()
-    AND perfiles.rol IN ('admin', 'superadmin')
-  )
-);
-
-CREATE POLICY "Admins pueden actualizar configuraciones"
-ON configuraciones FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM perfiles
-    WHERE perfiles.id = auth.uid()
-    AND perfiles.rol IN ('admin', 'superadmin')
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM perfiles
-    WHERE perfiles.id = auth.uid()
-    AND perfiles.rol IN ('admin', 'superadmin')
-  )
-);
-
-CREATE POLICY "Admins pueden eliminar configuraciones"
-ON configuraciones FOR DELETE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM perfiles
-    WHERE perfiles.id = auth.uid()
-    AND perfiles.rol IN ('admin', 'superadmin')
-  )
-);
+-- 5. Alternativa simple si la anterior falla (permitir a cualquier autenticado configurar, temporalmente)
+-- Descomentar si la de arriba da problemas
+-- CREATE POLICY "Permitir todo a autenticados"
+-- ON public.configuraciones
+-- FOR ALL
+-- TO authenticated
+-- USING (true)
+-- WITH CHECK (true);

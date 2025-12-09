@@ -26,6 +26,7 @@ En la pantalla de configuración ("Configure Project"):
 
 **IMPORTANTE:** Debes agregar las variables de entorno para que la aplicación funcione correctamente. Despliega la sección **"Environment Variables"** y agrega las siguientes (copia los valores de tu archivo `.env.local`):
 
+
 | Nombre (Key) | Valor (Value) |
 | :--- | :--- |
 | `NEXT_PUBLIC_SUPABASE_URL` | *Tu URL de Supabase* |
@@ -33,15 +34,25 @@ En la pantalla de configuración ("Configure Project"):
 | `SUPABASE_SERVICE_ROLE_KEY` | *Tu Service Role Key de Supabase* |
 | `RESEND_API_KEY` | *Tu API Key de Resend* |
 | `GEMINI_API_KEY` | *Tu API Key de Google Gemini* |
-| `PIPEDRIVE_API_TOKEN` | *Tu Token de Pipedrive (si usas)* |
-| `PIPEDRIVE_COMPANY_DOMAIN` | *Tu Dominio de Pipedrive (si usas)* |
+| `PIPEDRIVE_API_KEY` | *Tu API Key de Pipedrive (si usas)* |
+| `PIPEDRIVE_DOMAIN` | *Tu Dominio de Pipedrive (si usas) (ej: alfapack)* |
+| `ENCRYPTION_KEY` | *Clave para encriptar datos sensibles (32 bytes base64)* |
+| `NEXT_PUBLIC_APP_URL` | *URL de tu app en producción (ej: https://tudominio.vercel.app)* |
 
 > **Nota:** Asegúrate de no incluir espacios extra al copiar las claves.
 
 ## 5. Desplegar
 
+
 1.  Haz clic en **"Deploy"**.
 2.  Espera a que termine el proceso de construcción (Build).
+3.  **SI YA TIENES EL PROYECTO CREADO:**
+    *   Ve a la pestaña **"Deployments"**.
+    *   Haz clic en el botón de tres puntos (...) al lado del último despliegue (o del que quieras actualizar).
+    *   Selecciona **"Redeploy"**.
+    *   Asegúrate de marcar "Use existing Build Cache" si quieres que sea rápido, o desmárcalo si quieres una build limpia (recomendado si cambiaste variables importantes).
+    *   Esto es **CRUCIAL**: Si solo cambias las variables pero no haces Redeploy, los cambios NO se aplicarán.
+4.  Si todo sale bien, verás una pantalla de "Congratulations!".
 3.  Si todo sale bien, verás una pantalla de "Congratulations!".
 
 ## 6. Verificación

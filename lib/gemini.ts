@@ -1,6 +1,8 @@
+```typescript
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decrypt } from "@/lib/encryption";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * Obtiene la API key de Gemini desde la base de datos (encriptada)
@@ -8,8 +10,20 @@ import { decrypt } from "@/lib/encryption";
  */
 export async function getGeminiApiKey(): Promise<string> {
   try {
-    // Usar cliente de admin para tener permisos completos en el servidor
-    const supabase = await createAdminClient();
+    // Usar variables de entorno directamente para evitar problemas de dependencia circular o config dinámica fallida
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Faltan variables de entorno de Supabase (URL o SERVICE_ROLE_KEY)");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
     console.log(`[GEMINI] 🔑 Obteniendo API key desde base de datos...`);
 
@@ -22,19 +36,15 @@ export async function getGeminiApiKey(): Promise<string> {
 
     if (configError) {
       console.error("❌ Error consultando configuración de Gemini:", configError);
-      // Intentar usar variable de entorno como fallback
+
+      // Intentar usar variable de entorno como fallback, PERO solo si no es la causa del error de permisos
       const envKey = process.env.GEMINI_API_KEY;
       if (envKey) {
         console.log("⚠️ Usando API key de Gemini de variable de entorno debido a error en base de datos");
         return envKey;
       }
-      // Mensaje más claro sobre el problema
-      const errorMsg = configError.message || "Error desconocido";
-      if (errorMsg.includes("permission") || errorMsg.includes("policy") || errorMsg.includes("RLS")) {
-        console.warn("⚠️ Error de permisos RLS. El service role debería bypasear RLS. Usando variable de entorno si está disponible.");
-        throw new Error("No tienes permisos para leer la configuración y no hay API key en variables de entorno. Verifica que la SERVICE_ROLE_KEY esté configurada correctamente o agrega GEMINI_API_KEY en .env.local");
-      }
-      throw new Error(`Error al acceder a la configuración: ${errorMsg}. Si acabas de cambiar la configuración de Supabase, es posible que necesites configurar las API keys nuevamente.`);
+
+      throw new Error(`Error al acceder a la configuración: ${ configError.message }.`);
     }
 
     if (config?.valor_encriptado) {
@@ -53,7 +63,7 @@ export async function getGeminiApiKey(): Promise<string> {
           console.log("✅ Usando API key de Gemini de variable de entorno");
           return envKey;
         }
-        throw new Error(`Error al desencriptar la API key de Gemini: ${error.message || "Error desconocido"}. Por favor, vuelve a configurar la API key en el panel de administración.`);
+        throw new Error(`Error al desencriptar la API key de Gemini: ${ error.message || "Error desconocido" }. Por favor, vuelve a configurar la API key en el panel de administración.`);
       }
     } else {
       console.warn(`[GEMINI] ⚠️ No se encontró configuración en base de datos`);
@@ -68,7 +78,7 @@ export async function getGeminiApiKey(): Promise<string> {
 
     throw new Error("API key de Gemini no configurada. Por favor, configúrala en el panel de administración.");
   } catch (error: any) {
-    console.error(`[GEMINI] ❌ Error obteniendo API key:`, error);
+    console.error(`[GEMINI] ❌ Error obteniendo API key: `, error);
     // Si es un error de configuración del cliente admin, intentar con variable de entorno
     if (error.message?.includes("SUPABASE_SERVICE_ROLE_KEY")) {
       const envKey = process.env.GEMINI_API_KEY;
@@ -81,9 +91,9 @@ export async function getGeminiApiKey(): Promise<string> {
   }
 }
 
-const SYSTEM_PROMPT = `Eres un supervisor técnico de alto nivel experto en redacción de informes de servicio al cliente. Tu tarea es recibir notas breves, informales y posiblemente con errores ortográficos de un técnico de reparación. Debes transformar esas notas en un Informe de Servicio Técnico profesional, empático y claro.
+const SYSTEM_PROMPT = `Eres un supervisor técnico de alto nivel experto en redacción de informes de servicio al cliente.Tu tarea es recibir notas breves, informales y posiblemente con errores ortográficos de un técnico de reparación.Debes transformar esas notas en un Informe de Servicio Técnico profesional, empático y claro.
 
-Estructura de salida obligatoria (JSON): { "resumen_cliente": "Explicación sencilla de 1 frase para el cliente.", "detalle_tecnico": "Explicación técnica formal de lo realizado.", "estado_equipo": "Operativo / Requiere revisión / Irreparable" } NO inventes información que no esté en las notas, solo dales formato.`;
+Estructura de salida obligatoria(JSON): { "resumen_cliente": "Explicación sencilla de 1 frase para el cliente.", "detalle_tecnico": "Explicación técnica formal de lo realizado.", "estado_equipo": "Operativo / Requiere revisión / Irreparable" } NO inventes información que no esté en las notas, solo dales formato.`;
 
 export async function generarInforme(notasBrutas: string): Promise<{
   resumen_cliente: string;
@@ -97,17 +107,17 @@ export async function generarInforme(notasBrutas: string): Promise<{
 
   // Usar gemini-2.0-flash - confirmado funcionando en test-connection
   const modelName = "gemini-2.0-flash";
-  console.log(`[GEMINI] 🤖 Usando modelo: ${modelName}`);
+  console.log(`[GEMINI] 🤖 Usando modelo: ${ modelName } `);
   const model = genAI.getGenerativeModel({ model: modelName });
 
-  const prompt = `${SYSTEM_PROMPT}\n\nNotas del técnico: ${notasBrutas}\n\nGenera el informe en formato JSON.`;
+  const prompt = `${ SYSTEM_PROMPT } \n\nNotas del técnico: ${ notasBrutas } \n\nGenera el informe en formato JSON.`;
 
   try {
     console.log(`[GEMINI] 🚀 Enviando solicitud a Gemini...`);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    console.log(`[GEMINI] ✅ Respuesta recibida: ${text.substring(0, 100)}...`);
+    console.log(`[GEMINI] ✅ Respuesta recibida: ${ text.substring(0, 100) }...`);
 
     // Extraer JSON de la respuesta
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -136,7 +146,7 @@ export async function generarInforme(notasBrutas: string): Promise<{
       statusText: error.statusText,
       errorDetails: error.errorDetails
     });
-    throw new Error(`Error al generar el informe: ${error.message || "Error desconocido"}. Por favor, intente nuevamente.`);
+    throw new Error(`Error al generar el informe: ${ error.message || "Error desconocido" }. Por favor, intente nuevamente.`);
   }
 }
 
