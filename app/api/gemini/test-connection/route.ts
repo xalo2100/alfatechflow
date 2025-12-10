@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
     // Limpiar la API key
     const cleanedKey = apiKey.trim().replace(/\\s+/g, "").replace(/\\n/g, "");
 
-    // Usar gemini-2.0-flash-exp que es gratuito y rápido
+    // Usar gemini-2.5-flash que es el modelo gratuito disponible
     // NO probar múltiples modelos para evitar consumir cuota innecesariamente
-    const modeloAProbar = "gemini-2.0-flash-exp";
+    const modeloAProbar = "gemini-2.5-flash";
 
     console.log(`🌐 Probando modelo ${modeloAProbar} con API v1beta...`);
 
