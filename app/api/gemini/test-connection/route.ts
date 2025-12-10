@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGeminiApiKey } from "@/lib/gemini";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json(
             {
               success: false,
-              error: "No se puede acceder a la configuración de Gemini y no hay variables de entorno configuradas.\n\nSolución:\n1. Agrega GEMINI_API_KEY en .env.local\n2. O verifica que la SERVICE_ROLE_KEY esté configurada correctamente\n3. O configura la API key desde el panel de administración",
+              error: "No se puede acceder a la configuración de Gemini y no hay variables de entorno configuradas.\\n\\nSolución:\\n1. Agrega GEMINI_API_KEY en .env.local\\n2. O verifica que la SERVICE_ROLE_KEY esté configurada correctamente\\n3. O configura la API key desde el panel de administración",
             },
             { status: 500 }
           );
@@ -45,77 +44,46 @@ export async function GET(request: NextRequest) {
     }
 
     // Limpiar la API key
-    const cleanedKey = apiKey.trim().replace(/\s+/g, "").replace(/\n/g, "");
+    const cleanedKey = apiKey.trim().replace(/\\s+/g, "").replace(/\\n/g, "");
 
-    // Lista de modelos a probar en orden de preferencia
-    // Priorizamos gemini-2.0-flash que es el más rápido y tiene mejor cuota
-    const modelosParaProbar = [
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-pro",
-    ];
+    // Usar gemini-2.0-flash-exp que es gratuito y rápido
+    // NO probar múltiples modelos para evitar consumir cuota innecesariamente
+    const modeloAProbar = "gemini-2.0-flash-exp";
 
-    let modeloFuncionando: string | null = null;
-    let versionFuncionando: string | null = null;
-    let ultimoError: any = null;
+    console.log(`🌐 Probando modelo ${modeloAProbar} con API v1beta...`);
 
-    // Probar cada modelo SOLO con v1beta (v1 no soporta gemini-1.5-pro)
-    for (const nombreModelo of modelosParaProbar) {
-      try {
-        console.log(`🌐 Probando modelo ${nombreModelo} con API v1beta...`);
+    // Usar API REST v1beta directamente
+    const restUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modeloAProbar}:generateContent?key=${cleanedKey}`;
+    const restResponse = await fetch(restUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: "OK"
+          }]
+        }]
+      })
+    });
 
-        // Usar API REST v1beta directamente
-        const restUrl = `https://generativelanguage.googleapis.com/v1beta/models/${nombreModelo}:generateContent?key=${cleanedKey}`;
-        const restResponse = await fetch(restUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: "OK"
-              }]
-            }]
-          })
+    if (restResponse.ok) {
+      const restData = await restResponse.json();
+      if (restData.candidates && restData.candidates[0]?.content?.parts?.[0]?.text) {
+        console.log(`✅ Modelo ${modeloAProbar} funciona con API v1beta`);
+        return NextResponse.json({
+          success: true,
+          message: "Conexión con Gemini exitosa",
+          model: modeloAProbar,
+          version: 'v1beta',
         });
-
-        if (restResponse.ok) {
-          const restData = await restResponse.json();
-          if (restData.candidates && restData.candidates[0]?.content?.parts?.[0]?.text) {
-            modeloFuncionando = nombreModelo;
-            versionFuncionando = 'v1beta';
-            console.log(`✅ Modelo ${nombreModelo} funciona con API v1beta`);
-            break;
-          }
-        } else {
-          const errorData = await restResponse.json().catch(() => ({}));
-          console.warn(`❌ API v1beta falló para ${nombreModelo}:`, errorData.error?.message || restResponse.status);
-          if (!ultimoError) {
-            ultimoError = new Error(errorData.error?.message || `HTTP ${restResponse.status}`);
-          }
-        }
-      } catch (restError: any) {
-        console.warn(`❌ Error en API v1beta para ${nombreModelo}:`, restError.message);
-        if (!ultimoError) {
-          ultimoError = restError;
-        }
-        continue;
       }
     }
 
-    if (modeloFuncionando) {
-      return NextResponse.json({
-        success: true,
-        message: "Conexión con Gemini exitosa",
-        model: modeloFuncionando,
-        version: versionFuncionando,
-      });
-    }
-
-    // Si ningún modelo funcionó, retornar error con detalles
-    const errorMsg = ultimoError?.message || "Error desconocido";
+    const errorData = await restResponse.json().catch(() => ({}));
+    const errorMsg = errorData.error?.message || `HTTP ${restResponse.status}`;
+    console.warn(`❌ API v1beta falló para ${modeloAProbar}:`, errorMsg);
 
     let mensajeTraducido = errorMsg;
     if (errorMsg.toLowerCase().includes("quota") || errorMsg.includes("429")) {
@@ -127,7 +95,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: `No se pudo conectar con ningún modelo de Gemini.\n\nDetalle del error: ${mensajeTraducido}\n\nPosibles soluciones:\n1. Si es error de cuota: Revisa tu facturación en Google Cloud o espera a que se renueve tu cuota gratuita.\n2. Si es error de Key: Verifica que la API Key sea correcta en https://aistudio.google.com/\n3. Asegúrate de tener habilitada la API 'Generative Language API'.`,
+        error: `No se pudo conectar con Gemini.\\n\\nDetalle del error: ${mensajeTraducido}\\n\\nPosibles soluciones:\\n1. Si es error de cuota: Revisa tu facturación en Google Cloud o espera a que se renueve tu cuota gratuita.\\n2. Si es error de Key: Verifica que la API Key sea correcta en https://aistudio.google.com/\\n3. Asegúrate de tener habilitada la API 'Generative Language API'.`,
       },
       { status: 400 }
     );
@@ -153,4 +121,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
