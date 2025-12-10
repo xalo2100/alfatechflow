@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertTriangle, Eye, Clock, Users } from "lucide-react";
+import { AlertTriangle, Eye, Clock, Users, Trash2 } from "lucide-react";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
