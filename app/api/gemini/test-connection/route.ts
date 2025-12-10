@@ -3,8 +3,18 @@ import { getGeminiApiKey } from "@/lib/gemini";
 
 export const dynamic = 'force-dynamic';
 
+// Cache simple en memoria (se resetea cuando se reinicia el servidor)
+let lastTestResult: { success: boolean; data: any; timestamp: number } | null = null;
+const CACHE_DURATION_MS = 60000; // 1 minuto
+
 export async function GET(request: NextRequest) {
   try {
+    // Verificar si tenemos un resultado en caché reciente
+    if (lastTestResult && (Date.now() - lastTestResult.timestamp) < CACHE_DURATION_MS) {
+      console.log("✅ Usando resultado en caché para evitar exceder límite de 1 RPM");
+      return NextResponse.json(lastTestResult.data);
+    }
+
     // Obtener la API key de la base de datos
     let apiKey: string;
     try {
@@ -72,12 +82,21 @@ export async function GET(request: NextRequest) {
       const restData = await restResponse.json();
       if (restData.candidates && restData.candidates[0]?.content?.parts?.[0]?.text) {
         console.log(`✅ Modelo ${modeloAProbar} funciona con API v1beta`);
-        return NextResponse.json({
+        const successResult = {
           success: true,
           message: "Conexión con Gemini exitosa",
           model: modeloAProbar,
           version: 'v1beta',
-        });
+        };
+
+        // Guardar en caché
+        lastTestResult = {
+          success: true,
+          data: successResult,
+          timestamp: Date.now()
+        };
+
+        return NextResponse.json(successResult);
       }
     }
 
@@ -87,18 +106,24 @@ export async function GET(request: NextRequest) {
 
     let mensajeTraducido = errorMsg;
     if (errorMsg.toLowerCase().includes("quota") || errorMsg.includes("429")) {
-      mensajeTraducido = "Has excedido tu cuota de uso (Quota Exceeded). Tu plan gratuito o de pago ha alcanzado su límite.";
+      mensajeTraducido = "Has excedido tu cuota de uso (Quota Exceeded). El tier gratuito tiene límite de 1 request/minuto. Espera 60 segundos antes de refrescar.";
     } else if (errorMsg.toLowerCase().includes("key") && (errorMsg.includes("valid") || errorMsg.includes("found"))) {
       mensajeTraducido = "La API Key no es válida (API Key Invalid).";
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: `No se pudo conectar con Gemini.\\n\\nDetalle del error: ${mensajeTraducido}\\n\\nPosibles soluciones:\\n1. Si es error de cuota: Revisa tu facturación en Google Cloud o espera a que se renueve tu cuota gratuita.\\n2. Si es error de Key: Verifica que la API Key sea correcta en https://aistudio.google.com/\\n3. Asegúrate de tener habilitada la API 'Generative Language API'.`,
-      },
-      { status: 400 }
-    );
+    const errorResult = {
+      success: false,
+      error: `No se pudo conectar con Gemini.\\n\\nDetalle del error: ${mensajeTraducido}\\n\\nPosibles soluciones:\\n1. Si es error de cuota: El tier gratuito permite solo 1 request/minuto. Espera antes de refrescar.\\n2. Si es error de Key: Verifica que la API Key sea correcta en https://aistudio.google.com/\\n3. Asegúrate de tener habilitada la API 'Generative Language API'.`,
+    };
+
+    // Guardar error en caché también para evitar llamadas repetidas
+    lastTestResult = {
+      success: false,
+      data: errorResult,
+      timestamp: Date.now()
+    };
+
+    return NextResponse.json(errorResult, { status: 400 });
   } catch (error: any) {
     console.error("Error probando conexión con Gemini:", error);
 
@@ -106,7 +131,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Has excedido tu cuota de uso de la API de Gemini. Por favor revisa tu plan y facturación en Google Cloud Console.",
+          error: "Has excedido tu cuota de uso de la API de Gemini. El tier gratuito permite solo 1 request/minuto. Espera antes de refrescar.",
         },
         { status: 429 }
       );
