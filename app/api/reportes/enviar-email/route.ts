@@ -148,9 +148,39 @@ export async function POST(request: NextRequest) {
       console.log('Enviando email SIN adjunto PDF');
     }
 
-    const result = await sendEmail(emailOptions);
+    // Retry logic: intentar hasta 3 veces con backoff exponencial
+    let lastError: any = null;
+    const maxRetries = 2;
 
-    return NextResponse.json({ success: true, message: "Email enviado correctamente", id: result.id });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[EMAIL] Intento ${attempt + 1}/${maxRetries + 1} de envío...`);
+        const result = await sendEmail(emailOptions);
+        console.log(`[EMAIL] ✅ Email enviado exitosamente en intento ${attempt + 1}`);
+        return NextResponse.json({
+          success: true,
+          message: "Email enviado correctamente",
+          id: result.id,
+          attempts: attempt + 1
+        });
+      } catch (error: any) {
+        lastError = error;
+        console.error(`[EMAIL] ❌ Intento ${attempt + 1} falló:`, error.message);
+
+        // Si es el último intento, lanzar el error
+        if (attempt === maxRetries) {
+          break;
+        }
+
+        // Esperar antes de reintentar (backoff exponencial: 1s, 2s)
+        const delayMs = Math.pow(2, attempt) * 1000;
+        console.log(`[EMAIL] ⏳ Esperando ${delayMs}ms antes de reintentar...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+
+    // Si llegamos aquí, todos los intentos fallaron
+    throw lastError;
   } catch (error: any) {
     console.error("Error enviando email:", error);
     return NextResponse.json(
