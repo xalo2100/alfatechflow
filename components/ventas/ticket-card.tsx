@@ -32,9 +32,11 @@ interface TicketCardProps {
   onViewDetail?: (ticket: Ticket) => void;
   onRequestUrgent?: (ticketId: number) => void;
   onAssign?: (ticket: Ticket) => void;
+  onDelete?: (ticket: Ticket) => void;
+  isSuperAdmin?: boolean;
 }
 
-export function TicketCard({ ticket, onViewDetail, onRequestUrgent, onAssign }: TicketCardProps) {
+export function TicketCard({ ticket, onViewDetail, onRequestUrgent, onAssign, onDelete, isSuperAdmin }: TicketCardProps) {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date(ticket.updated_at || ticket.created_at));
   const [isNewUpdate, setIsNewUpdate] = useState(false);
 
@@ -198,6 +200,21 @@ export function TicketCard({ ticket, onViewDetail, onRequestUrgent, onAssign }: 
             >
               <AlertTriangle className="h-3 w-3" />
               Urgente
+            </Button>
+          )}
+          {isSuperAdmin && onDelete && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete(ticket);
+              }}
+              className="flex items-center gap-1"
+              title="Eliminar ticket (solo superadmin)"
+            >
+              <Trash2 className="h-3 w-3" />
             </Button>
           )}
         </div>

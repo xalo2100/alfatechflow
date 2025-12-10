@@ -22,6 +22,7 @@ import { AgregarUsuarioDialog } from "@/components/admin/agregar-usuario-dialog"
 import { EditarUsuarioDialog } from "@/components/admin/editar-usuario-dialog";
 import { CambiarContraseñaDialog } from "@/components/admin/cambiar-contraseña-dialog";
 import { ConfirmarEliminarDialog } from "@/components/admin/confirmar-eliminar-dialog";
+import { DeleteTicketDialog } from "@/components/admin/delete-ticket-dialog";
 import { AsignarTecnicoDialog } from "@/components/admin/asignar-tecnico-dialog";
 import { ConfigApiDialog } from "@/components/admin/config-api-dialog";
 import { ConfigPipedriveDialog } from "@/components/admin/config-pipedrive-dialog";
@@ -71,7 +72,9 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const [usuarioParaCambiarContraseña, setUsuarioParaCambiarContraseña] = useState<UsuarioCompleto | null>(null);
   const [ticketParaAsignar, setTicketParaAsignar] = useState<Ticket | null>(null);
   const [ticketParaVer, setTicketParaVer] = useState<Ticket | null>(null);
+  const [ticketParaEliminar, setTicketParaEliminar] = useState<Ticket | null>(null);
   const [eliminando, setEliminando] = useState(false);
+  const [eliminandoTicket, setEliminandoTicket] = useState(false);
   const supabase = createClient();
 
   // ... (rest of the code)
@@ -208,6 +211,37 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
       alert(`Error al eliminar usuario: ${error.message}`);
     } finally {
       setEliminando(false);
+    }
+  };
+
+  const handleEliminarTicket = async () => {
+    if (!ticketParaEliminar) return;
+
+    setEliminandoTicket(true);
+    try {
+      const response = await fetch(
+        `/api/admin/tickets/${ticketParaEliminar.id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al eliminar el ticket");
+      }
+
+      setTicketParaEliminar(null);
+      fetchTickets();
+      fetchStats();
+      alert(`✅ Ticket #${ticketParaEliminar.id} eliminado exitosamente`);
+    } catch (error: any) {
+      console.error("Error eliminando ticket:", error);
+      alert(`Error al eliminar ticket: ${error.message}`);
+    } finally {
+      setEliminandoTicket(false);
     }
   };
 
@@ -451,6 +485,8 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                     ticket={ticket}
                     onViewDetail={(ticket) => setTicketParaVer(ticket)}
                     onAssign={(ticket) => setTicketParaAsignar(ticket)}
+                    onDelete={perfil.rol === 'super_admin' ? (ticket) => setTicketParaEliminar(ticket) : undefined}
+                    isSuperAdmin={perfil.rol === 'super_admin'}
                   />
                   {/* Botón de asignar movido dentro de la tarjeta */}
                 </div>
@@ -849,6 +885,22 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           )}
         </DialogContent>
       </Dialog>
+
+      {ticketParaEliminar && (
+        <DeleteTicketDialog
+          open={!!ticketParaEliminar}
+          onOpenChange={(open) => !open && setTicketParaEliminar(null)}
+          ticket={{
+            id: ticketParaEliminar.id,
+            estado: ticketParaEliminar.estado,
+            tecnico_asignado_id: ticketParaEliminar.asignado_a || undefined,
+            tecnico_nombre: (ticketParaEliminar as any).tecnico?.nombre_completo,
+            cliente_nombre: ticketParaEliminar.cliente_nombre,
+            reportes_count: 0, // TODO: fetch actual count
+          }}
+          onConfirmDelete={handleEliminarTicket}
+        />
+      )}
     </div>
   );
 }
