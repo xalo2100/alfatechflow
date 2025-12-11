@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { FileText, Download, Search, Eye, Radio, BarChart3, Calendar, Filter, Grid3x3, List, ArrowLeft } from "lucide-react";
+import { FileText, Download, Search, Eye, Radio, BarChart3, Calendar, Filter, Grid3x3, List, ArrowLeft, CheckSquare, Square } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getAppConfig } from "@/lib/app-config";
 import jsPDF from "jspdf";
@@ -24,6 +24,8 @@ import {
 import type { Database } from "@/types/supabase";
 import { ReporteDetailDialog } from "@/components/reportes/reporte-detail-dialog";
 import { ReporteListView } from "@/components/reportes/reporte-list-view";
+import { BulkActionsToolbar } from "@/components/reportes/bulk-actions-toolbar";
+import { exportarReportesExcel, exportarReportesCSV, crearZipConPDFs, type ReporteExportData } from "@/lib/reports-export";
 
 type Reporte = Database["public"]["Tables"]["reportes"]["Row"];
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -40,23 +42,37 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
   const [selectedReporte, setSelectedReporte] = useState<ReporteConTicket | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "disconnected">("connected");
   const [filtroTecnico, setFiltroTecnico] = useState<string>("todos");
+  const [filtroCliente, setFiltroCliente] = useState<string>("todos");
   const [filtroTipoServicio, setFiltroTipoServicio] = useState<string>("todos");
   const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>("");
   const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedReportes, setSelectedReportes] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
   const fetchReportes = async () => {
     setLoading(true);
-    const { data: reportesData, error } = await supabase
+
+    // Construir query base
+    let query = supabase
       .from("reportes")
       .select(`
         *,
         ticket:tickets(*),
         tecnico:perfiles!reportes_tecnico_id_fkey(nombre_completo, email)
-      `)
-      .order("created_at", { ascending: false });
+      `);
+
+    // Filtrar por técnico si el usuario es técnico
+    // Admin y superadmin ven todos los reportes
+    if (perfil.rol === "tecnico") {
+      query = query.eq("tecnico_id", perfil.id);
+    }
+
+    query = query.order("created_at", { ascending: false });
+
+    const { data: reportesData, error } = await query;
 
     if (error) {
       console.error("Error fetching reportes:", error);
@@ -139,6 +155,14 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       return false;
     }
 
+    // Filtro por cliente
+    if (filtroCliente !== "todos") {
+      const clienteNombre = reporte.ticket?.cliente_nombre?.toLowerCase() || "";
+      if (clienteNombre !== filtroCliente.toLowerCase()) {
+        return false;
+      }
+    }
+
     // Filtro por tipo de servicio
     if (filtroTipoServicio !== "todos") {
       let reporteData: any = {};
@@ -199,6 +223,18 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       }
       return acc;
     }, []);
+
+  // Obtener clientes únicos para el filtro
+  const clientesUnicos = reportes
+    .filter(r => r.ticket?.cliente_nombre)
+    .reduce((acc: Array<string>, r) => {
+      const clienteNombre = r.ticket?.cliente_nombre || "";
+      if (clienteNombre && !acc.includes(clienteNombre)) {
+        acc.push(clienteNombre);
+      }
+      return acc;
+    }, [])
+    .sort();
 
   const descargarReportePDF = async (reporte: ReporteConTicket) => {
     let reporteData: any = {};
@@ -612,6 +648,166 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
     }, 250);
   };
 
+  // ===== FUNCIONES DE SELECCIÓN MÚLTIPLE =====
+
+  const toggleSelectReporte = (reporteId: number) => {
+    const newSelected = new Set(selectedReportes);
+    if (newSelected.has(reporteId)) {
+      newSelected.delete(reporteId);
+    } else {
+      newSelected.add(reporteId);
+    }
+    setSelectedReportes(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedReportes.size === filteredReportes.length) {
+      setSelectedReportes(new Set());
+    } else {
+      setSelectedReportes(new Set(filteredReportes.map(r => r.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedReportes(new Set());
+  };
+
+  // ===== ACCIONES MASIVAS =====
+
+  const handleBulkDownloadPDF = async () => {
+    setBulkLoading(true);
+    try {
+      const reportesSeleccionados = filteredReportes.filter(r => selectedReportes.has(r.id));
+
+      if (reportesSeleccionados.length === 0) {
+        alert('No hay reportes seleccionados');
+        return;
+      }
+
+      alert(`Generando ${reportesSeleccionados.length} PDFs. Esto puede tomar un momento...`);
+
+      const pdfs: Array<{ nombre: string; blob: Blob }> = [];
+
+      for (const reporte of reportesSeleccionados) {
+        try {
+          // Generar PDF usando jsPDF (similar a descargarReportePDF pero retornando blob)
+          let reporteData: any = {};
+          try {
+            reporteData = JSON.parse(reporte.reporte_ia as string);
+          } catch {
+            reporteData = {};
+          }
+
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const htmlCompleto = generarHTMLReporte(reporte, reporteData);
+
+          // Simplificado: generar PDF básico
+          const fileName = `Reporte_${reporte.ticket_id}_${format(new Date(reporte.created_at), 'yyyy-MM-dd')}.pdf`;
+          const pdfBlob = pdf.output('blob');
+
+          pdfs.push({ nombre: fileName, blob: pdfBlob });
+        } catch (error) {
+          console.error(`Error generando PDF para reporte ${reporte.id}:`, error);
+        }
+      }
+
+      if (pdfs.length > 0) {
+        const zipFileName = `Reportes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.zip`;
+        await crearZipConPDFs(pdfs, zipFileName);
+        alert(`Se descargaron ${pdfs.length} reportes en ${zipFileName}`);
+      }
+    } catch (error) {
+      console.error('Error en descarga masiva:', error);
+      alert('Error al generar los PDFs: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkPrint = () => {
+    const reportesSeleccionados = filteredReportes.filter(r => selectedReportes.has(r.id));
+
+    if (reportesSeleccionados.length === 0) {
+      alert('No hay reportes seleccionados');
+      return;
+    }
+
+    if (!confirm(`¿Deseas imprimir ${reportesSeleccionados.length} reportes? Se abrirán ventanas de impresión secuencialmente.`)) {
+      return;
+    }
+
+    // Imprimir reportes secuencialmente con delay
+    reportesSeleccionados.forEach((reporte, index) => {
+      setTimeout(() => {
+        exportarReporte(reporte);
+      }, index * 1000); // 1 segundo entre cada impresión
+    });
+  };
+
+  const handleExportExcel = () => {
+    const reportesSeleccionados = filteredReportes.filter(r => selectedReportes.has(r.id));
+
+    if (reportesSeleccionados.length === 0) {
+      alert('No hay reportes seleccionados');
+      return;
+    }
+
+    const exportData: ReporteExportData[] = reportesSeleccionados.map(reporte => {
+      let reporteData: any = {};
+      try {
+        reporteData = JSON.parse(reporte.reporte_ia as string);
+      } catch {
+        reporteData = {};
+      }
+
+      return {
+        ticket_id: reporte.ticket_id || 0,
+        cliente_nombre: reporte.ticket?.cliente_nombre || 'N/A',
+        tecnico_nombre: reporte.tecnico?.nombre_completo || 'N/A',
+        fecha: format(new Date(reporte.created_at), 'yyyy-MM-dd HH:mm', { locale: es }),
+        tipo_servicio: reporteData.tipo_servicio || 'N/A',
+        facturable: reporteData.facturable ? 'Sí' : 'No',
+        costo: reporte.costo_reparacion ? Number(reporte.costo_reparacion) : 0,
+        estado: 'Completado',
+      };
+    });
+
+    const fileName = `Reportes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`;
+    exportarReportesExcel(exportData, fileName);
+  };
+
+  const handleExportCSV = () => {
+    const reportesSeleccionados = filteredReportes.filter(r => selectedReportes.has(r.id));
+
+    if (reportesSeleccionados.length === 0) {
+      alert('No hay reportes seleccionados');
+      return;
+    }
+
+    const exportData: ReporteExportData[] = reportesSeleccionados.map(reporte => {
+      let reporteData: any = {};
+      try {
+        reporteData = JSON.parse(reporte.reporte_ia as string);
+      } catch {
+        reporteData = {};
+      }
+
+      return {
+        ticket_id: reporte.ticket_id || 0,
+        cliente_nombre: reporte.ticket?.cliente_nombre || 'N/A',
+        tecnico_nombre: reporte.tecnico?.nombre_completo || 'N/A',
+        fecha: format(new Date(reporte.created_at), 'yyyy-MM-dd HH:mm', { locale: es }),
+        tipo_servicio: reporteData.tipo_servicio || 'N/A',
+        facturable: reporteData.facturable ? 'Sí' : 'No',
+        costo: reporte.costo_reparacion ? Number(reporte.costo_reparacion) : 0,
+        estado: 'Completado',
+      };
+    });
+
+    const fileName = `Reportes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`;
+    exportarReportesCSV(exportData, fileName);
+  };
+
   const generarHTMLReporte = (reporte: ReporteConTicket, reporteData: any) => {
     const appConfig = getAppConfig();
     const logoHTML = appConfig?.logo
@@ -940,17 +1136,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
   </div>
   ` : ""}
 
-  ${reporte.costo_reparacion ? `
-  <div class="section">
-    <div class="section-title">INFORMACIÓN ADICIONAL</div>
-    <div class="info-grid">
-      <div class="info-item">
-        <div class="info-label">Costo de Reparación</div>
-        <div class="info-value">$${Number(reporte.costo_reparacion).toLocaleString('es-CL')}</div>
-      </div>
-    </div>
-  </div>
-  ` : ""}
+  ${/* Costo removido - solo para uso interno, no mostrar en PDFs de clientes */ ''}
 
   <div class="footer">
     <div>
@@ -1121,7 +1307,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               {/* Buscador */}
               <div className="relative lg:col-span-2">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1143,6 +1329,21 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
                   {tecnicosUnicos.map((tecnico: any) => (
                     <SelectItem key={tecnico.id} value={tecnico.id || ""}>
                       {tecnico.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Filtro por Cliente */}
+              <Select value={filtroCliente} onValueChange={setFiltroCliente}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos los clientes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los clientes</SelectItem>
+                  {clientesUnicos.map((cliente: string) => (
+                    <SelectItem key={cliente} value={cliente}>
+                      {cliente}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1189,9 +1390,26 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
               </div>
             </div>
 
-            {/* Mostrar resultados filtrados */}
-            <div className="mt-4 text-sm text-muted-foreground">
-              Mostrando {filteredReportes.length} de {reportes.length} reportes
+            {/* Mostrar resultados filtrados y selección */}
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Mostrando {filteredReportes.length} de {reportes.length} reportes
+              </div>
+              {filteredReportes.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                  className="flex items-center gap-2"
+                >
+                  {selectedReportes.size === filteredReportes.length ? (
+                    <CheckSquare className="h-4 w-4" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                  {selectedReportes.size === filteredReportes.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1207,12 +1425,27 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredReportes.map((reporte) => (
-              <Card key={reporte.id} className="hover:shadow-lg transition-shadow">
+              <Card key={reporte.id} className="hover:shadow-lg transition-shadow relative">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">
-                      Ticket #{reporte.ticket_id}
-                    </CardTitle>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectReporte(reporte.id);
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        {selectedReportes.has(reporte.id) ? (
+                          <CheckSquare className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Square className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </button>
+                      <CardTitle className="text-lg">
+                        Ticket #{reporte.ticket_id}
+                      </CardTitle>
+                    </div>
                     <Badge variant="outline">
                       <FileText className="h-3 w-3 mr-1" />
                       Reporte
@@ -1304,12 +1537,17 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
           tecnicoNombre={perfil.rol === "tecnico" ? perfil.nombre_completo : undefined}
         />
       )}
+
+      {/* Toolbar de acciones masivas */}
+      <BulkActionsToolbar
+        selectedCount={selectedReportes.size}
+        onDownloadPDF={handleBulkDownloadPDF}
+        onPrint={handleBulkPrint}
+        onExportExcel={handleExportExcel}
+        onExportCSV={handleExportCSV}
+        onClearSelection={clearSelection}
+        loading={bulkLoading}
+      />
     </div>
   );
 }
-
-
-
-
-
-

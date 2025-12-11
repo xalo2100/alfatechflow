@@ -30,6 +30,7 @@ import { ConfigSupabaseDialog } from "@/components/admin/config-supabase-dialog"
 import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
 import { TicketDetail } from "@/components/tecnico/ticket-detail";
 import { EmpresasManager } from "@/components/admin/empresas-manager";
+import { ReportesDashboard } from "@/components/reportes/dashboard";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -424,6 +425,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
               <Building2 className="h-4 w-4 mr-2" />
               Empresas
             </TabsTrigger>
+            <TabsTrigger value="reportes">
+              <FileText className="h-4 w-4 mr-2" />
+              Reportes
+            </TabsTrigger>
             <TabsTrigger value="configuracion">
               <Settings className="h-4 w-4 mr-2" />
               Configuración
@@ -668,6 +673,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="reportes" className="mt-6">
+            <ReportesDashboard perfil={perfil} />
           </TabsContent>
 
           <TabsContent value="configuracion" className="mt-6 space-y-4">

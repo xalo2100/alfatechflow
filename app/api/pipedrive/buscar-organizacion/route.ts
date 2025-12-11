@@ -34,17 +34,17 @@ export async function GET(request: NextRequest) {
     console.log(`[API] ==========================================`);
     console.log(`[API] 🔍 BÚSQUEDA SOLICITADA: "${query}"`);
     console.log(`[API] ==========================================`);
-    
+
     try {
       // Verificar credenciales ANTES de buscar
       console.log(`[API] 🔍 Verificando credenciales de Pipedrive...`);
-      
+
       // Importar las funciones de obtención de credenciales
       const { getPipedriveApiKey, getPipedriveDomain } = await import("@/lib/pipedrive");
-      
+
       let apiKey: string;
       let domain: string;
-      
+
       try {
         apiKey = await getPipedriveApiKey();
         domain = await getPipedriveDomain();
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       } catch (credencialesError: any) {
         console.error(`[API] ❌ Error obteniendo credenciales:`, credencialesError);
         return NextResponse.json(
-          { 
+          {
             error: credencialesError.message || "Error al obtener credenciales de Pipedrive",
             detalles: "Por favor, configura la API key y dominio de Pipedrive en el panel de administración.",
             resultados: []
@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
           { status: 400 } // Cambiar a 400 porque es un error de configuración, no del servidor
         );
       }
-      
+
       // Usar la función maestra que busca en organizaciones Y personas
       console.log(`[API] 📞 Llamando a buscarEnPipedriveCompleto...`);
       const datosCompletos = await buscarEnPipedriveCompleto(query.trim());
-      
+
       console.log(`[API] 📊 Resultado de buscarEnPipedriveCompleto:`, datosCompletos ? "ENCONTRADO" : "NO ENCONTRADO");
-      
+
       if (!datosCompletos) {
         console.log(`[API] ⚠️ No se encontraron resultados para: "${query}"`);
         console.log(`[API] ==========================================`);
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       }
 
       console.log(`[API] ✅ Datos encontrados:`, JSON.stringify(datosCompletos, null, 2));
-      
+
       // Formatear para el componente de búsqueda
       const resultado = {
         id: datosCompletos.esOrganizacion ? 1 : 0, // ID temporal
@@ -84,9 +84,16 @@ export async function GET(request: NextRequest) {
           rut: datosCompletos.rut,
           direccion: datosCompletos.direccion,
           ciudad: datosCompletos.ciudad,
-          email_cliente: datosCompletos.email,
-          telefono_fijo: datosCompletos.telefono,
-          celular: datosCompletos.telefono,
+          // Asegurar que email_cliente siempre sea un string
+          email_cliente: typeof datosCompletos.email === 'object'
+            ? (datosCompletos.email as any)?.value || ''
+            : datosCompletos.email || '',
+          telefono_fijo: typeof datosCompletos.telefono === 'object'
+            ? (datosCompletos.telefono as any)?.value || ''
+            : datosCompletos.telefono || '',
+          celular: typeof datosCompletos.telefono === 'object'
+            ? (datosCompletos.telefono as any)?.value || ''
+            : datosCompletos.telefono || '',
           responsable: datosCompletos.responsable,
         },
         esOrganizacion: datosCompletos.esOrganizacion,
@@ -101,15 +108,15 @@ export async function GET(request: NextRequest) {
       console.error(`[API] Mensaje:`, error.message);
       console.error(`[API] Stack:`, error.stack);
       console.error(`[API] ==========================================`);
-      
+
       // Determinar si es un error de configuración o un error de servidor
-      const esErrorConfiguracion = error.message?.includes("no configurada") || 
-                                    error.message?.includes("no configurado") ||
-                                    error.message?.includes("Error al obtener credenciales");
-      
+      const esErrorConfiguracion = error.message?.includes("no configurada") ||
+        error.message?.includes("no configurado") ||
+        error.message?.includes("Error al obtener credenciales");
+
       return NextResponse.json(
-        { 
-          error: error.message || "Error al buscar en Pipedrive", 
+        {
+          error: error.message || "Error al buscar en Pipedrive",
           resultados: [],
           detalles: error.stack,
           tipoError: esErrorConfiguracion ? "configuracion" : "servidor"

@@ -40,8 +40,10 @@ export function BuscarClientePipedrive({
 
   useEffect(() => {
     // Sincronizar query con valorInicial si cambia externamente
+    // Asegurar que siempre sea un string
     if (valorInicial !== undefined && valorInicial !== query) {
-      setQuery(valorInicial);
+      const safeValue = typeof valorInicial === 'string' ? valorInicial : String(valorInicial || '');
+      setQuery(safeValue);
     }
   }, [valorInicial]);
 
@@ -123,7 +125,9 @@ export function BuscarClientePipedrive({
   };
 
   const handleInputChange = (value: string) => {
-    setQuery(value);
+    // Asegurar que siempre sea un string
+    const safeValue = typeof value === 'string' ? value : String(value || '');
+    setQuery(safeValue);
 
     // Limpiar timeout anterior
     if (timeoutRef.current) {
@@ -224,7 +228,9 @@ export function BuscarClientePipedrive({
                     )}
                     {cliente.formulario.email_cliente && (
                       <div className="text-xs text-gray-500">
-                        {cliente.formulario.email_cliente}
+                        {typeof cliente.formulario.email_cliente === 'object'
+                          ? (cliente.formulario.email_cliente as any).value || ''
+                          : cliente.formulario.email_cliente}
                       </div>
                     )}
                   </div>

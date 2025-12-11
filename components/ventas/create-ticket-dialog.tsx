@@ -45,6 +45,7 @@ export function CreateTicketDialog({
     dispositivo_modelo: "",
     falla_declarada: "",
     prioridad: "normal" as "baja" | "normal" | "alta" | "urgente",
+    costo_estimado: "",
   });
   const supabase = createClient();
 
@@ -62,7 +63,7 @@ export function CreateTicketDialog({
         creado_por: creadoPor,
         estado: "abierto", // Siempre se crea como abierto, el admin lo asignará
       };
-      
+
       // Si hay empresa, combinarla con cliente_nombre para guardar en la BD
       // (La tabla tickets no tiene campo empresa separado, así que lo combinamos)
       if (formData.empresa && formData.cliente_nombre) {
@@ -82,12 +83,20 @@ export function CreateTicketDialog({
         }
       }
 
+      // Agregar costo estimado si se proporcionó
+      if (formData.costo_estimado && formData.costo_estimado.trim() !== "") {
+        const costoNumerico = parseFloat(formData.costo_estimado);
+        if (!isNaN(costoNumerico) && costoNumerico > 0) {
+          ticketData.costo_estimado = costoNumerico;
+        }
+      }
+
       // Ventas NO puede asignar técnicos directamente, solo admin puede
       // Si se selecciona un técnico, se ignora (solo para mostrar en el formulario)
       // ticketData.asignado_a = undefined; // Siempre sin asignar cuando lo crea ventas
 
       const { error } = await supabase.from("tickets").insert(ticketData);
-      
+
       // Si el error es por la columna datos_cliente no existente, intentar sin ese campo
       if (error && error.message?.includes("datos_cliente")) {
         console.warn(`[CREATE-TICKET] ⚠️ Columna datos_cliente no existe, guardando sin datos de Pipedrive`);
@@ -142,9 +151,10 @@ export function CreateTicketDialog({
                   setDatosPipedrive(datos);
                   setFormData((prev) => ({
                     ...prev,
-                    empresa: datos.razon_social || prev.empresa,
-                    cliente_nombre: datos.responsable || datos.razon_social || prev.cliente_nombre || "",
-                    cliente_contacto: datos.email_cliente || datos.telefono_fijo || datos.celular || prev.cliente_contacto || "",
+                    // Asegurar que empresa siempre sea un string
+                    empresa: String(datos.razon_social || prev.empresa || ''),
+                    cliente_nombre: String(datos.responsable || datos.razon_social || prev.cliente_nombre || ''),
+                    cliente_contacto: String(datos.email_cliente || datos.telefono_fijo || datos.celular || prev.cliente_contacto || ''),
                   }));
                 }}
               />
@@ -176,20 +186,20 @@ export function CreateTicketDialog({
               placeholder="Teléfono o email"
             />
           </div>
-            <div className="space-y-2">
-              <Label htmlFor="dispositivo_modelo">Equipo/Producto/Servicio</Label>
-              <Input
-                id="dispositivo_modelo"
-                value={formData.dispositivo_modelo}
-                onChange={(e) =>
-                  setFormData({ ...formData, dispositivo_modelo: e.target.value })
-                }
-                placeholder="Ej: Equipo industrial, Software, Maquinaria, Sistema, etc."
-              />
-              <p className="text-xs text-muted-foreground">
-                Especifica el equipo, producto o servicio que requiere atención
-              </p>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="dispositivo_modelo">Equipo/Producto/Servicio</Label>
+            <Input
+              id="dispositivo_modelo"
+              value={formData.dispositivo_modelo}
+              onChange={(e) =>
+                setFormData({ ...formData, dispositivo_modelo: e.target.value })
+              }
+              placeholder="Ej: Equipo industrial, Software, Maquinaria, Sistema, etc."
+            />
+            <p className="text-xs text-muted-foreground">
+              Especifica el equipo, producto o servicio que requiere atención
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="falla_declarada">Descripción del Problema/Solicitud *</Label>
             <Textarea
@@ -202,6 +212,23 @@ export function CreateTicketDialog({
               placeholder="Describe el problema, solicitud o necesidad reportada..."
               rows={4}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="costo_estimado">Costo Estimado (Opcional)</Label>
+            <Input
+              id="costo_estimado"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.costo_estimado}
+              onChange={(e) =>
+                setFormData({ ...formData, costo_estimado: e.target.value })
+              }
+              placeholder="Ej: 50000"
+            />
+            <p className="text-xs text-muted-foreground">
+              Este costo es solo para uso interno y no será visible para el técnico
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="prioridad">Prioridad</Label>
