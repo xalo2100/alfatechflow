@@ -117,6 +117,7 @@ export function CreateTicketDialog({
         dispositivo_modelo: "",
         falla_declarada: "",
         prioridad: "normal",
+        costo_estimado: "",
       });
       setDatosPipedrive(null); // Limpiar datos de Pipedrive
 
