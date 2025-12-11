@@ -599,18 +599,22 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                             </td>
                             <td className="p-2">
                               <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "admin"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : usuario.rol === "ventas"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-green-100 text-green-800"
+                                className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "super_admin"
+                                  ? "bg-red-100 text-red-800"
+                                  : usuario.rol === "admin"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : usuario.rol === "ventas"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-green-100 text-green-800"
                                   }`}
                               >
-                                {usuario.rol === "admin"
-                                  ? "Administrador"
-                                  : usuario.rol === "ventas"
-                                    ? "Ventas"
-                                    : "Técnico"}
+                                {usuario.rol === "super_admin"
+                                  ? "Superadmin"
+                                  : usuario.rol === "admin"
+                                    ? "Administrador"
+                                    : usuario.rol === "ventas"
+                                      ? "Ventas"
+                                      : "Técnico"}
                               </span>
                             </td>
                             <td className="p-2 text-sm">
@@ -653,7 +657,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                                 >
                                   <KeyRound className="h-3 w-3" />
                                 </Button>
-                                {usuario.id !== perfil.id && (
+                                {usuario.id !== perfil.id && usuario.rol !== "super_admin" && (
                                   <Button
                                     size="sm"
                                     variant="destructive"
@@ -776,6 +780,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
         open={!!usuarioParaEditar}
         onOpenChange={(open) => !open && setUsuarioParaEditar(null)}
         usuario={usuarioParaEditar}
+        perfilActual={perfil}
         onSuccess={() => {
           fetchUsuarios();
           fetchStats();
@@ -794,6 +799,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
       <AgregarUsuarioDialog
         open={showAgregarUsuario}
         onOpenChange={setShowAgregarUsuario}
+        perfilActual={perfil}
         onSuccess={() => {
           fetchUsuarios();
         }}

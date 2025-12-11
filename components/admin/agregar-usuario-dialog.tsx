@@ -26,12 +26,14 @@ interface AgregarUsuarioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  perfilActual?: any; // Perfil del usuario actual para verificar si es superadmin
 }
 
 export function AgregarUsuarioDialog({
   open,
   onOpenChange,
   onSuccess,
+  perfilActual,
 }: AgregarUsuarioDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,7 +41,7 @@ export function AgregarUsuarioDialog({
     email: "",
     password: "",
     nombre_completo: "",
-    rol: "ventas" as "ventas" | "admin",
+    rol: "ventas" as "ventas" | "admin" | "super_admin",
   });
   const supabase = createClient();
 
@@ -108,8 +110,8 @@ export function AgregarUsuarioDialog({
 
       onOpenChange(false);
       onSuccess();
-      
-      const rolNombre = formData.rol === "admin" ? "Administrador" : "Ventas";
+
+      const rolNombre = formData.rol === "super_admin" ? "Superadmin" : formData.rol === "admin" ? "Administrador" : "Ventas";
       alert(`✅ Usuario ${rolNombre} creado exitosamente!\n\nEmail: ${formData.email}\nNombre: ${formData.nombre_completo}\nRol: ${rolNombre}\n\nEl usuario puede iniciar sesión inmediatamente.`);
     } catch (error: any) {
       console.error("Error creando usuario:", error);
@@ -133,7 +135,7 @@ export function AgregarUsuarioDialog({
             <Label htmlFor="rol">Rol *</Label>
             <Select
               value={formData.rol}
-              onValueChange={(value: "ventas" | "admin") =>
+              onValueChange={(value: "ventas" | "admin" | "super_admin") =>
                 setFormData({ ...formData, rol: value })
               }
             >
@@ -143,6 +145,9 @@ export function AgregarUsuarioDialog({
               <SelectContent>
                 <SelectItem value="ventas">Ventas</SelectItem>
                 <SelectItem value="admin">Administrador</SelectItem>
+                {perfilActual?.rol === "super_admin" && (
+                  <SelectItem value="super_admin">Superadmin</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -203,7 +208,7 @@ export function AgregarUsuarioDialog({
                   Creando...
                 </>
               ) : (
-                `Crear ${formData.rol === "admin" ? "Administrador" : "Usuario de Ventas"}`
+                `Crear ${formData.rol === "super_admin" ? "Superadmin" : formData.rol === "admin" ? "Administrador" : "Usuario de Ventas"}`
               )}
             </Button>
           </DialogFooter>

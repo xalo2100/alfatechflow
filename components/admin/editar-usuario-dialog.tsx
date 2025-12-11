@@ -36,6 +36,7 @@ interface EditarUsuarioDialogProps {
     onOpenChange: (open: boolean) => void;
     usuario: Usuario | null;
     onSuccess: () => void;
+    perfilActual?: any; // Perfil del usuario actual para verificar si es superadmin
 }
 
 export function EditarUsuarioDialog({
@@ -43,6 +44,7 @@ export function EditarUsuarioDialog({
     onOpenChange,
     usuario,
     onSuccess,
+    perfilActual,
 }: EditarUsuarioDialogProps) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -149,6 +151,9 @@ export function EditarUsuarioDialog({
                                 <SelectItem value="tecnico">Técnico</SelectItem>
                                 <SelectItem value="ventas">Ventas</SelectItem>
                                 <SelectItem value="admin">Administrador</SelectItem>
+                                {perfilActual?.rol === "super_admin" && (
+                                    <SelectItem value="super_admin">Superadmin</SelectItem>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>

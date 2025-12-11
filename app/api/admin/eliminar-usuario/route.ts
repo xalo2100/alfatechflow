@@ -87,6 +87,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // No permitir eliminar superadmins
+    if (usuarioExistente.rol === "super_admin") {
+      return NextResponse.json(
+        { error: "No se puede eliminar un usuario Superadmin. Los superadmins están protegidos contra eliminación." },
+        { status: 403 }
+      );
+    }
+
     // Verificar si el usuario tiene tickets asignados
     const { data: ticketsAsignados, error: ticketsError } = await adminClient
       .from("tickets")
