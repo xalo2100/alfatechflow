@@ -60,7 +60,7 @@ export function ReportesDashboard({ perfil }: { perfil: any }) {
       .from("reportes")
       .select(`
         *,
-        ticket:tickets(*),
+        ticket:tickets!reportes_ticket_id_fkey(*),
         tecnico:perfiles!reportes_tecnico_id_fkey(nombre_completo, email)
       `);
 
