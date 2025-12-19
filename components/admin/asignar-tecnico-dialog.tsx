@@ -80,12 +80,24 @@ export function AsignarTecnicoDialog({
         asignado_a: tecnicoSeleccionado || null,
       };
 
-      // Si se asigna un técnico, cambiar estado a "asignado"
-      // Si se quita el técnico, cambiar estado a "abierto"
+      // Logica modificada: Si el ticket ya está finalizado/entregado, SOLO cambiar el técnico
+      // Si está en curso (abierto/asignado/etc), actualizar el estado normalmente
+      const isFinalState = ["finalizado", "entregado"].includes(ticket.estado);
+
       if (tecnicoSeleccionado) {
-        updateData.estado = "asignado";
+        // Si hay técnico seleccionado
+        if (!isFinalState) {
+          // Si NO está finalizado, pasarlo a asignado (flujo normal)
+          updateData.estado = "asignado";
+        }
+        // Si ESTÁ finalizado, no tocamos el estado, solo cambiamos el técnico (updateData ya tiene asignado_a)
       } else {
-        updateData.estado = "abierto";
+        // Si se quita el técnico
+        if (!isFinalState) {
+          updateData.estado = "abierto";
+        }
+        // Si está finalizado y le quitan el técnico... es un caso raro, mejor lo dejamos como está o advertimos.
+        // Por ahora, asumimos que si es finalizado no deberían quitar el técnico, pero si lo hacen, mantenemos el estado.
       }
 
       const { error: updateError } = await supabase

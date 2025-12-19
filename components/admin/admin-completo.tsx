@@ -404,7 +404,16 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
               <Plus className="h-4 w-4 mr-2" />
               Crear Ticket
             </Button>
+            import {TecnicosActivos} from "@/components/tecnico/tecnicos-activos";
+
+          // ... (existing imports)
+
+          // Inside AdminCompleto component return:
           </div>
+        </div>
+
+        <div className="mb-6">
+          <TecnicosActivos perfilActual={perfil} />
         </div>
 
         <Tabs defaultValue="metricas" className="w-full">

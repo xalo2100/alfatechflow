@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { AppConfigLoader } from "@/components/app-config-loader";
 import { DynamicFavicon } from "@/components/dynamic-favicon";
 import { DynamicTitle } from "@/components/dynamic-title";
+import { ChatWrapper } from "@/components/chat/chat-wrapper";
 import type { User } from "@supabase/supabase-js";
 
 type UserContextType = {
@@ -58,8 +59,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AppConfigLoader />
       <DynamicFavicon />
       <DynamicTitle />
+
       <UserContext.Provider value={{ user, loading }}>
         {children}
+        <ChatWrapper />
       </UserContext.Provider>
     </ThemeProvider>
   );

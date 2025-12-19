@@ -22,6 +22,7 @@ interface TecnicoActivo {
 export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
   const [tecnicosActivos, setTecnicosActivos] = useState<TecnicoActivo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const supabase = createClient();
 
   const fetchTecnicosActivos = async () => {
@@ -142,69 +143,80 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
   const timezone = getTimezone();
 
   return (
+    return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Compañeros Activos ({Object.keys(tecnicosAgrupados).length})
-        </CardTitle>
+      <CardHeader className="py-3">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-between w-full hover:bg-muted/50 -m-2 p-2 rounded-md transition-colors"
+        >
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Users className="h-5 w-5" />
+            Compañeros Activos ({Object.keys(tecnicosAgrupados).length})
+          </CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {isOpen ? "Ocultar" : "Ver Actividad"}
+          </Badge>
+        </button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {Object.values(tecnicosAgrupados).map((grupo) => {
-          const tecnico = grupo.tecnico;
-          const ultimaActividad = new Date(
-            Math.max(...grupo.tickets.map((t) => new Date(t.ultima_actividad).getTime()))
-          );
+      {isOpen && (
+        <CardContent className="space-y-4 pt-0">
+          {Object.values(tecnicosAgrupados).map((grupo) => {
+            const tecnico = grupo.tecnico;
+            const ultimaActividad = new Date(
+              Math.max(...grupo.tickets.map((t) => new Date(t.ultima_actividad).getTime()))
+            );
 
-          return (
-            <div
-              key={tecnico.tecnico_id}
-              className="border rounded-lg p-3 space-y-2 bg-card"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="font-semibold">{tecnico.nombre_completo}</span>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {grupo.tickets.length} {grupo.tickets.length === 1 ? "ticket" : "tickets"}
-                </Badge>
-              </div>
-              <div className="space-y-1 pl-4">
-                {grupo.tickets.map((ticket) => (
-                  <div
-                    key={ticket.ticket_id}
-                    className="text-sm flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Ticket #{ticket.ticket_id}:</span>
-                      <span className="font-medium">{ticket.cliente_nombre}</span>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={
-                        ticket.estado === "en_proceso"
-                          ? "bg-yellow-500 text-white border-yellow-600"
-                          : ticket.estado === "espera_repuesto"
-                          ? "bg-orange-500 text-white border-orange-600"
-                          : "bg-blue-500 text-white border-blue-600"
-                      }
-                    >
-                      {ticket.estado.replace("_", " ")}
-                    </Badge>
+            return (
+              <div
+                key={tecnico.tecnico_id}
+                className="border rounded-lg p-3 space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="font-semibold">{tecnico.nombre_completo}</span>
                   </div>
-                ))}
+                  <Badge variant="outline" className="text-xs">
+                    {grupo.tickets.length} {grupo.tickets.length === 1 ? "ticket" : "tickets"}
+                  </Badge>
+                </div>
+                <div className="space-y-1 pl-4">
+                  {grupo.tickets.map((ticket) => (
+                    <div
+                      key={ticket.ticket_id}
+                      className="text-sm flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Ticket #{ticket.ticket_id}:</span>
+                        <span className="font-medium">{ticket.cliente_nombre}</span>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          ticket.estado === "en_proceso"
+                            ? "bg-yellow-500 text-white border-yellow-600"
+                            : ticket.estado === "espera_repuesto"
+                              ? "bg-orange-500 text-white border-orange-600"
+                              : "bg-blue-500 text-white border-blue-600"
+                        }
+                      >
+                        {ticket.estado.replace("_", " ")}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground pl-4">
+                  <Clock className="h-3 w-3" />
+                  <span>
+                    Última actividad: {formatInTimeZone(ultimaActividad, timezone, "PPp", { locale: es })}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground pl-4">
-                <Clock className="h-3 w-3" />
-                <span>
-                  Última actividad: {formatInTimeZone(ultimaActividad, timezone, "PPp", { locale: es })}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </CardContent>
+            );
+          })}
+        </CardContent>
+      )}
     </Card>
   );
 }
