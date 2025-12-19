@@ -32,7 +32,7 @@ export async function DELETE(
         // Verificar que el usuario es superadmin
         const { data: perfil, error: perfilError } = await supabase
             .from('perfiles')
-            .select('role')
+            .select('rol')
             .eq('id', user.id)
             .single();
 
@@ -43,7 +43,7 @@ export async function DELETE(
             );
         }
 
-        if (perfil.role !== 'super_admin') {
+        if (perfil.rol !== 'super_admin') {
             return NextResponse.json(
                 { error: 'Solo los superadministradores pueden eliminar tickets' },
                 { status: 403 }

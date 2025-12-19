@@ -14,7 +14,7 @@ export type Database = {
           id: string
           email: string | null
           nombre_completo: string | null
-          rol: "admin" | "ventas" | "tecnico"
+          rol: "super_admin" | "admin" | "ventas" | "tecnico"
           activo: boolean
           created_at: string
         }
@@ -22,7 +22,7 @@ export type Database = {
           id: string
           email?: string | null
           nombre_completo?: string | null
-          rol: "admin" | "ventas" | "tecnico"
+          rol: "super_admin" | "admin" | "ventas" | "tecnico"
           activo?: boolean
           created_at?: string
         }
@@ -30,7 +30,7 @@ export type Database = {
           id?: string
           email?: string | null
           nombre_completo?: string | null
-          rol?: "admin" | "ventas" | "tecnico"
+          rol?: "super_admin" | "admin" | "ventas" | "tecnico"
           activo?: boolean
           created_at?: string
         }
@@ -49,6 +49,7 @@ export type Database = {
           creado_por: string | null
           asignado_a: string | null
           foto_url: string | null
+          hora_inicio: string | null
         }
         Insert: {
           id?: number
@@ -63,6 +64,7 @@ export type Database = {
           creado_por?: string | null
           asignado_a?: string | null
           foto_url?: string | null
+          hora_inicio?: string | null
         }
         Update: {
           id?: number
@@ -77,6 +79,7 @@ export type Database = {
           creado_por?: string | null
           asignado_a?: string | null
           foto_url?: string | null
+          hora_inicio?: string | null
         }
       }
       reportes: {
