@@ -58,7 +58,7 @@ export function AsignarTecnicoDialog({
     const { data, error } = await supabase
       .from("perfiles")
       .select("id, nombre_completo, run")
-      .eq("rol", "tecnico")
+      .in("rol", ["tecnico", "admin", "super_admin"])
       .eq("activo", true)
       .order("nombre_completo");
 
@@ -99,11 +99,11 @@ export function AsignarTecnicoDialog({
 
       onOpenChange(false);
       onSuccess();
-      
-      const tecnicoNombre = tecnicoSeleccionado 
+
+      const tecnicoNombre = tecnicoSeleccionado
         ? tecnicos.find(t => t.id === tecnicoSeleccionado)?.nombre_completo || "Técnico"
         : "Ninguno";
-      
+
       alert(`✅ Técnico ${tecnicoSeleccionado ? "asignado" : "removido"} exitosamente.\n\nTicket #${ticket.id}\nTécnico: ${tecnicoNombre}`);
     } catch (error: any) {
       console.error("Error asignando técnico:", error);
