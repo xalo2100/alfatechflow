@@ -31,6 +31,7 @@ import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
 import { TicketDetail } from "@/components/tecnico/ticket-detail";
 import { EmpresasManager } from "@/components/admin/empresas-manager";
 import { ReportesDashboard } from "@/components/reportes/dashboard";
+import { TecnicosActivos } from "@/components/tecnico/tecnicos-activos";
 import type { Database } from "@/types/supabase";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
@@ -404,11 +405,6 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
               <Plus className="h-4 w-4 mr-2" />
               Crear Ticket
             </Button>
-            import {TecnicosActivos} from "@/components/tecnico/tecnicos-activos";
-
-          // ... (existing imports)
-
-          // Inside AdminCompleto component return:
           </div>
         </div>
 
