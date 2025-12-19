@@ -237,7 +237,12 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
       setTicketParaEliminar(null);
       fetchTickets();
       fetchStats();
-      alert(`✅ Ticket #${ticketParaEliminar.id} eliminado exitosamente`);
+
+      if (result.deletedCount === 0) {
+        alert(`⚠️ Alerta: El sistema reportó éxito pero NO se eliminó ninguna fila (0 filas afectadas).\n\nEsto suele indicar un problema de permisos en la base de datos o que el ticket ya no existe.`);
+      } else {
+        alert(`✅ Ticket #${ticketParaEliminar.id} eliminado exitosamente.\nFilas eliminadas: ${result.deletedCount}`);
+      }
     } catch (error: any) {
       console.error("Error eliminando ticket:", error);
       alert(`Error al eliminar ticket: ${error.message}`);

@@ -89,9 +89,9 @@ export async function DELETE(
         }
 
         // Eliminar el ticket
-        const { error: deleteError } = await adminClient
+        const { error: deleteError, count } = await adminClient
             .from('tickets')
-            .delete()
+            .delete({ count: 'exact' })
             .eq('id', ticketId);
 
         if (deleteError) {
@@ -106,7 +106,8 @@ export async function DELETE(
             success: true,
             message: 'Ticket eliminado exitosamente',
             deletedTicketId: ticketId,
-            deletedReports: ticket.reportes?.length || 0
+            deletedReports: ticket.reportes?.length || 0,
+            deletedCount: count
         });
 
     } catch (error: any) {
