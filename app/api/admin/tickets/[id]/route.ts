@@ -50,51 +50,11 @@ export async function DELETE(
             );
         }
 
-        // Usar admin client para operaciones de eliminación
+        // Usar admin client para operaciones de eliminación (bypassing RLS)
         const adminClient = await createAdminClient();
 
-        // Obtener información del ticket antes de eliminar
-        const { data: ticket, error: ticketError } = await adminClient
-            .from('tickets')
-            .select(`
-        id,
-        estado,
-        tecnico_asignado_id,
-        reportes!reportes_ticket_id_fkey (id)
-      `)
-            .eq('id', ticketId)
-            .single();
-
-        if (ticketError || !ticket) {
-            console.error('Error fetching ticket:', ticketError);
-            return NextResponse.json(
-                {
-                    error: `Error diagnóstico: No se pudo leer el ticket usando permisos de administrador.`,
-                    details: ticketError?.message || 'Ticket no existe',
-                    code: ticketError?.code,
-                    hint: 'Esto suele ocurrir si la SUPABASE_SERVICE_ROLE_KEY es inválida o el ticket realmente no existe.'
-                },
-                { status: 404 }
-            );
-        }
-
-        // Eliminar reportes asociados primero (si existen)
-        if (ticket.reportes && Array.isArray(ticket.reportes) && ticket.reportes.length > 0) {
-            const { error: reportesError } = await adminClient
-                .from('reportes')
-                .delete()
-                .eq('ticket_id', ticketId);
-
-            if (reportesError) {
-                console.error('Error eliminando reportes:', reportesError);
-                return NextResponse.json(
-                    { error: 'Error al eliminar reportes asociados: ' + reportesError.message },
-                    { status: 500 }
-                );
-            }
-        }
-
-        // Eliminar el ticket
+        // Eliminar el ticket directamente
+        // La base de datos tiene ON DELETE CASCADE, así que los reportes se borrarán automáticamente
         const { error: deleteError, count } = await adminClient
             .from('tickets')
             .delete({ count: 'exact' })
@@ -103,16 +63,28 @@ export async function DELETE(
         if (deleteError) {
             console.error('Error eliminando ticket:', deleteError);
             return NextResponse.json(
-                { error: 'Error al eliminar el ticket: ' + deleteError.message },
+                {
+                    error: 'Error al eliminar el ticket',
+                    details: deleteError.message,
+                    code: deleteError.code
+                },
                 { status: 500 }
             );
+        }
+
+        if (count === 0) {
+            return NextResponse.json({
+                success: false,
+                message: 'El ticket no existe o ya fue eliminado',
+                deletedTicketId: ticketId,
+                deletedCount: 0
+            });
         }
 
         return NextResponse.json({
             success: true,
             message: 'Ticket eliminado exitosamente',
             deletedTicketId: ticketId,
-            deletedReports: ticket.reportes?.length || 0,
             deletedCount: count
         });
 
