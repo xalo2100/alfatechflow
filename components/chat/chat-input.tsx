@@ -7,9 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 
 interface ChatInputProps {
     currentUserId: string;
+    receiverId?: string | null;
 }
 
-export function ChatInput({ currentUserId }: ChatInputProps) {
+export function ChatInput({ currentUserId, receiverId }: ChatInputProps) {
     const [message, setMessage] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -53,6 +54,7 @@ export function ChatInput({ currentUserId }: ChatInputProps) {
 
             const { error } = await supabase.from("mensajes").insert({
                 sender_id: currentUserId,
+                receiver_id: receiverId || null,
                 content: message.trim() || null,
                 media_url: mediaUrl,
                 media_type: mediaType,
@@ -73,227 +75,144 @@ export function ChatInput({ currentUserId }: ChatInputProps) {
             setIsSending(false);
         }
     };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    };
-
-    // Image Compression Helper
-    const compressImage = (file: File): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                if (!ctx) return reject("Canvas error");
-
-                // Max dimension 1024px
-                const MAX_WIDTH = 1024;
-                let width = img.width;
-                let height = img.height;
-
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob((blob) => {
-                    if (blob) resolve(blob);
-                    else reject("Compression error");
-                }, "image/jpeg", 0.8);
-            };
-            img.onerror = reject;
+    // ...
+    const stopRecordingAndSend = async () => { // ... (inside stopRecordingAndSend logic)
+        // ...
+        const { error } = await supabase.from("mensajes").insert({
+            sender_id: currentUserId,
+            receiver_id: receiverId || null,
+            content: null,
+            media_url: publicUrl,
+            media_type: "audio",
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
         });
-    };
 
-    // Audio Recording
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = mediaRecorder;
-            audioChunksRef.current = [];
+        if (error) console.error("Error sending voice note:", error);
 
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    audioChunksRef.current.push(e.data);
-                }
-            };
-
-            mediaRecorder.start();
-            setIsRecording(true);
-
-            timerRef.current = setInterval(() => {
-                setRecordingTime((prev) => prev + 1);
-            }, 1000);
-
-        } catch (err) {
-            console.error("Error accessing microphone:", err);
-            alert("No se pudo acceder al micrófono.");
-        }
-    };
-
-    const stopRecordingAndSend = async () => {
-        if (!mediaRecorderRef.current) return;
-
-        mediaRecorderRef.current.onstop = async () => {
-            setIsSending(true);
-            const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" }); // or audio/ogg
-            const fileName = `chat-audio/${Date.now()}-${currentUserId}.webm`;
-
-            try {
-                const { error: uploadError } = await supabase.storage
-                    .from('chat-media')
-                    .upload(fileName, audioBlob);
-
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('chat-media')
-                    .getPublicUrl(fileName);
-
-                const { error } = await supabase.from("mensajes").insert({
-                    sender_id: currentUserId,
-                    content: null,
-                    media_url: publicUrl,
-                    media_type: "audio",
-                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
-                });
-
-                if (error) console.error("Error sending voice note:", error);
-
-            } catch (error) {
-                console.error("Error upload audio:", error);
-            } finally {
-                setIsSending(false);
-                setIsRecording(false);
-                setRecordingTime(0);
-                if (timerRef.current) clearInterval(timerRef.current);
-                // Stop all tracks
-                mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
-            }
-        };
-
-        mediaRecorderRef.current.stop();
-    };
-
-    const cancelRecording = () => {
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-        }
+    } catch (error) {
+        console.error("Error upload audio:", error);
+    } finally {
+        setIsSending(false);
         setIsRecording(false);
         setRecordingTime(0);
         if (timerRef.current) clearInterval(timerRef.current);
+        // Stop all tracks
+        mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    }
+};
+
+mediaRecorderRef.current.stop();
     };
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
+const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+};
 
-    return (
-        <div className="flex flex-col gap-2">
-            {selectedImage && (
-                <div className="relative w-fit">
-                    <div className="absolute top-0 right-0 -mt-2 -mr-2 bg-slate-200 rounded-full p-1 cursor-pointer" onClick={() => setSelectedImage(null)}>
-                        <X className="h-3 w-3" />
-                    </div>
-                    <img
-                        src={URL.createObjectURL(selectedImage)}
-                        alt="Preview"
-                        className="h-20 rounded-md border"
-                    />
-                    <span className="text-xs text-muted-foreground">Se comprimirá al enviar</span>
-                </div>
-            )}
+const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
-            {isRecording ? (
-                <div className="flex items-center gap-2 w-full bg-red-50 dark:bg-red-900/20 p-2 rounded-md transition-all animate-in fade-in">
-                    <div className="animate-pulse h-3 w-3 bg-red-600 rounded-full" />
-                    <span className="text-sm font-mono text-red-600 dark:text-red-400 min-w-[50px]">
-                        {formatTime(recordingTime)}
-                    </span>
-                    <span className="text-sm text-muted-foreground flex-1">Grabando nota de voz...</span>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={cancelRecording}
-                        className="text-muted-foreground hover:text-red-600"
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="default" // Changed from 'solid' to 'default' as 'solid' might not exist in standard shadcn setup 
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        onClick={stopRecordingAndSend}
-                        disabled={isSending}
-                    >
-                        <Send className="h-4 w-4" />
-                    </Button>
+return (
+    <div className="flex flex-col gap-2">
+        {selectedImage && (
+            <div className="relative w-fit">
+                <div className="absolute top-0 right-0 -mt-2 -mr-2 bg-slate-200 rounded-full p-1 cursor-pointer" onClick={() => setSelectedImage(null)}>
+                    <X className="h-3 w-3" />
                 </div>
-            ) : (
-                <div className="flex items-end gap-2">
-                    <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        ref={fileInputRef}
-                        onChange={(e) => {
-                            if (e.target.files?.[0]) setSelectedImage(e.target.files[0]);
-                        }}
-                    />
+                <img
+                    src={URL.createObjectURL(selectedImage)}
+                    alt="Preview"
+                    className="h-20 rounded-md border"
+                />
+                <span className="text-xs text-muted-foreground">Se comprimirá al enviar</span>
+            </div>
+        )}
+
+        {isRecording ? (
+            <div className="flex items-center gap-2 w-full bg-red-50 dark:bg-red-900/20 p-2 rounded-md transition-all animate-in fade-in">
+                <div className="animate-pulse h-3 w-3 bg-red-600 rounded-full" />
+                <span className="text-sm font-mono text-red-600 dark:text-red-400 min-w-[50px]">
+                    {formatTime(recordingTime)}
+                </span>
+                <span className="text-sm text-muted-foreground flex-1">Grabando nota de voz...</span>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={cancelRecording}
+                    className="text-muted-foreground hover:text-red-600"
+                >
+                    <X className="h-4 w-4" />
+                </Button>
+                <Button
+                    size="sm"
+                    variant="default" // Changed from 'solid' to 'default' as 'solid' might not exist in standard shadcn setup 
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={stopRecordingAndSend}
+                    disabled={isSending}
+                >
+                    <Send className="h-4 w-4" />
+                </Button>
+            </div>
+        ) : (
+            <div className="flex items-end gap-2">
+                <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                        if (e.target.files?.[0]) setSelectedImage(e.target.files[0]);
+                    }}
+                />
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Enviar Imagen"
+                >
+                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                </Button>
+
+                <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Escribe un mensaje..."
+                    className="flex-1 min-h-[40px] max-h-[120px] p-2 text-sm bg-transparent border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                    rows={1}
+                />
+
+                {message.trim() || selectedImage ? (
                     <Button
                         size="icon"
-                        variant="ghost"
+                        onClick={handleSendMessage}
+                        disabled={isSending}
                         className="shrink-0"
-                        onClick={() => fileInputRef.current?.click()}
-                        title="Enviar Imagen"
                     >
-                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </Button>
-
-                    <textarea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Escribe un mensaje..."
-                        className="flex-1 min-h-[40px] max-h-[120px] p-2 text-sm bg-transparent border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                        rows={1}
-                    />
-
-                    {message.trim() || selectedImage ? (
-                        <Button
-                            size="icon"
-                            onClick={handleSendMessage}
-                            disabled={isSending}
-                            className="shrink-0"
-                        >
-                            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        </Button>
-                    ) : (
-                        <Button
-                            size="icon"
-                            variant="secondary"
-                            onClick={startRecording}
-                            className="shrink-0 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 transition-colors"
-                            title="Grabar Audio"
-                        >
-                            <Mic className="h-5 w-5" />
-                        </Button>
-                    )}
-                </div>
-            )}
-        </div>
-    );
+                ) : (
+                    <Button
+                        size="icon"
+                        variant="secondary"
+                        onClick={startRecording}
+                        className="shrink-0 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 transition-colors"
+                        title="Grabar Audio"
+                    >
+                        <Mic className="h-5 w-5" />
+                    </Button>
+                )}
+            </div>
+        )}
+    </div>
+);
 }
