@@ -143,7 +143,7 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
   const timezone = getTimezone();
 
   return (
-    return (
+
     <Card>
       <CardHeader className="py-3">
         <button
