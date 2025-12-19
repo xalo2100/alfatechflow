@@ -66,8 +66,14 @@ export async function DELETE(
             .single();
 
         if (ticketError || !ticket) {
+            console.error('Error fetching ticket:', ticketError);
             return NextResponse.json(
-                { error: 'Ticket no encontrado' },
+                {
+                    error: `Error diagnóstico: No se pudo leer el ticket usando permisos de administrador.`,
+                    details: ticketError?.message || 'Ticket no existe',
+                    code: ticketError?.code,
+                    hint: 'Esto suele ocurrir si la SUPABASE_SERVICE_ROLE_KEY es inválida o el ticket realmente no existe.'
+                },
                 { status: 404 }
             );
         }
