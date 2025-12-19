@@ -481,9 +481,13 @@ export function ReporteAlfapackDialog({
         firma_tecnico: firmaTecnico || null,
       };
 
+      // Obtener el usuario actual para atribuirle el reporte
+      const { data: { user } } = await supabase.auth.getUser();
+      const creadorId = user?.id || tecnicoId;
+
       const { data: reporteInsertado, error } = await supabase.from("reportes").insert({
         ticket_id: ticketId,
-        tecnico_id: tecnicoId,
+        tecnico_id: creadorId, // Usar el ID del usuario actual (quien crea el reporte)
         notas_brutas: notasBrutas,
         reporte_ia: JSON.stringify(reporteCompleto),
         repuestos_lista: formData.repuestos.map(r => `${r.cantidad}x ${r.descripcion}${r.codigo ? ` (${r.codigo})` : ""}`).join(", "),
@@ -498,13 +502,18 @@ export function ReporteAlfapackDialog({
 
       // Actualizar ticket a finalizado SOLO cuando se guarda el reporte
       // Y registrar hora de término
-      await supabase
+      const { error: updateError } = await supabase
         .from("tickets")
         .update({
           estado: "finalizado",
           hora_termino: new Date().toISOString()
         })
         .eq("id", ticketId);
+
+      if (updateError) {
+        console.warn("Error al actualizar estado del ticket:", updateError);
+        // No lanzamos error para no bloquear el guardado del reporte, pero avisamos
+      }
 
       // Enviar email solo si se solicita
       let mensajeEmail = "";

@@ -60,7 +60,7 @@ export async function DELETE(
         id,
         estado,
         tecnico_asignado_id,
-        reportes (id)
+        reportes!reportes_ticket_id_fkey (id)
       `)
             .eq('id', ticketId)
             .single();
