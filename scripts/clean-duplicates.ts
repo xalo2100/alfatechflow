@@ -67,37 +67,43 @@ async function cleanDuplicates() {
         console.log(`Eliminando usuario ${usuario.id}...`);
 
         try {
-            // 1. Desasignar tickets
+            // 1. Reasignar tickets asignados
             const { error: ticketsError } = await adminClient
                 .from("tickets")
-                .update({ asignado_a: null })
+                .update({ asignado_a: usuarioAMantener.id })
                 .eq("asignado_a", usuario.id);
 
             if (ticketsError) {
-                console.warn(`  ⚠️  Error desasignando tickets: ${ticketsError.message}`);
+                console.warn(`  ⚠️  Error reasignando tickets: ${ticketsError.message}`);
+            } else {
+                console.log(`  ✅ Tickets reasignados al usuario principal`);
             }
 
-            // 2. Desasociar reportes
+            // 2. Reasignar reportes (técnico)
             const { error: reportesError } = await adminClient
                 .from("reportes")
-                .update({ tecnico_id: null })
+                .update({ tecnico_id: usuarioAMantener.id })
                 .eq("tecnico_id", usuario.id);
 
             if (reportesError) {
-                console.warn(`  ⚠️  Error desasociando reportes: ${reportesError.message}`);
+                console.warn(`  ⚠️  Error reasignando reportes: ${reportesError.message}`);
+            } else {
+                console.log(`  ✅ Reportes reasignados al usuario principal`);
             }
 
-            // 3. Desvincular tickets creados
+            // 3. Reasignar tickets creados
             const { error: creadosError } = await adminClient
                 .from("tickets")
-                .update({ creado_por: null })
+                .update({ creado_por: usuarioAMantener.id })
                 .eq("creado_por", usuario.id);
 
             if (creadosError) {
-                console.warn(`  ⚠️  Error desvinculando tickets creados: ${creadosError.message}`);
+                console.warn(`  ⚠️  Error reasignando autoría de tickets: ${creadosError.message}`);
+            } else {
+                console.log(`  ✅ Autoría de tickets transferida`);
             }
 
-            // 4. Eliminar ubicaciones
+            // 4. Eliminar ubicaciones (no se pueden reasignar fácilmente si ya existen, mejor borrar las viejas)
             const { error: ubicacionesError } = await adminClient
                 .from("ubicaciones_tecnicos")
                 .delete()
@@ -107,14 +113,14 @@ async function cleanDuplicates() {
                 console.warn(`  ⚠️  Error eliminando ubicaciones: ${ubicacionesError.message}`);
             }
 
-            // 5. Eliminar o actualizar configuraciones creadas por este usuario
+            // 5. Reasignar configuraciones
             const { error: configuracionesError } = await adminClient
                 .from("configuraciones")
-                .update({ creado_por: null })
+                .update({ creado_por: usuarioAMantener.id })
                 .eq("creado_por", usuario.id);
 
             if (configuracionesError) {
-                console.warn(`  ⚠️  Error actualizando configuraciones: ${configuracionesError.message}`);
+                console.warn(`  ⚠️  Error reasignando configuraciones: ${configuracionesError.message}`);
             }
 
             // 6. Eliminar perfil

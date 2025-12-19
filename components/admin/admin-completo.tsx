@@ -366,14 +366,14 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
         nombre={perfil.nombre_completo}
       />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h2 className="text-3xl font-bold">Panel de Administración</h2>
             <p className="text-muted-foreground">
               Acceso completo al sistema - {format(new Date(), "MMMM yyyy", { locale: es })}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {/* Botones visibles solo para superadmin */}
             {/* Botones visibles solo para superadmin */}
             {perfil.rol === "super_admin" && (
@@ -392,7 +392,6 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                 </Button>
               </>
             )}
-
             <Button variant="outline" onClick={() => setShowAgregarTecnico(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
               Agregar Técnico
@@ -409,7 +408,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
         </div>
 
         <Tabs defaultValue="metricas" className="w-full">
-          <TabsList>
+          <TabsList className="w-full justify-start overflow-x-auto h-auto p-1">
             <TabsTrigger value="metricas">
               <BarChart3 className="h-4 w-4 mr-2" />
               Métricas
@@ -576,109 +575,184 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
                     No hay usuarios registrados
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-2">Nombre</th>
-                          <th className="text-left p-2">Email</th>
-                          <th className="text-left p-2">Rol</th>
-                          <th className="text-left p-2">RUN</th>
-                          <th className="text-left p-2">Estado</th>
-                          <th className="text-left p-2">Fecha Creación</th>
-                          <th className="text-left p-2">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {usuarios.map((usuario) => (
-                          <tr key={usuario.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                            <td className="p-2 font-medium">
-                              {usuario.nombre_completo || "Sin nombre"}
-                            </td>
-                            <td className="p-2 text-sm">
-                              {usuario.email || (
-                                <span className="text-muted-foreground italic">
-                                  Sin email
+                  <>
+                    <div className="overflow-x-auto hidden md:block">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">Nombre</th>
+                            <th className="text-left p-2">Email</th>
+                            <th className="text-left p-2">Rol</th>
+                            <th className="text-left p-2">RUN</th>
+                            <th className="text-left p-2">Estado</th>
+                            <th className="text-left p-2">Fecha Creación</th>
+                            <th className="text-left p-2">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {usuarios.map((usuario) => (
+                            <tr key={usuario.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                              <td className="p-2 font-medium">
+                                {usuario.nombre_completo || "Sin nombre"}
+                              </td>
+                              <td className="p-2 text-sm">
+                                {usuario.email || (
+                                  <span className="text-muted-foreground italic">
+                                    Sin email
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2">
+                                <span
+                                  className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "super_admin"
+                                    ? "bg-red-100 text-red-800"
+                                    : usuario.rol === "admin"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : usuario.rol === "ventas"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-green-100 text-green-800"
+                                    }`}
+                                >
+                                  {usuario.rol === "super_admin"
+                                    ? "Superadmin"
+                                    : usuario.rol === "admin"
+                                      ? "Administrador"
+                                      : usuario.rol === "ventas"
+                                        ? "Ventas"
+                                        : "Técnico"}
                                 </span>
-                              )}
-                            </td>
-                            <td className="p-2">
-                              <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "super_admin"
-                                  ? "bg-red-100 text-red-800"
-                                  : usuario.rol === "admin"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : usuario.rol === "ventas"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-green-100 text-green-800"
-                                  }`}
-                              >
-                                {usuario.rol === "super_admin"
-                                  ? "Superadmin"
-                                  : usuario.rol === "admin"
-                                    ? "Administrador"
-                                    : usuario.rol === "ventas"
-                                      ? "Ventas"
-                                      : "Técnico"}
-                              </span>
-                            </td>
-                            <td className="p-2 text-sm">
-                              {usuario.run || (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            <td className="p-2">
-                              <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${usuario.activo
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                                  }`}
-                              >
-                                {usuario.activo ? "Activo" : "Inactivo"}
-                              </span>
-                            </td>
-                            <td className="p-2 text-sm text-muted-foreground">
-                              {format(
-                                new Date(usuario.created_at),
-                                "PP",
-                                { locale: es }
-                              )}
-                            </td>
-                            <td className="p-2">
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setUsuarioParaEditar(usuario)}
-                                  title="Editar usuario"
+                              </td>
+                              <td className="p-2 text-sm">
+                                {usuario.run || (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </td>
+                              <td className="p-2">
+                                <span
+                                  className={`px-2 py-1 rounded text-xs font-medium ${usuario.activo
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                    }`}
                                 >
-                                  <Settings className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setUsuarioParaCambiarContraseña(usuario)}
-                                  title="Cambiar contraseña"
-                                >
-                                  <KeyRound className="h-3 w-3" />
-                                </Button>
-                                {usuario.id !== perfil.id && usuario.rol !== "super_admin" && (
+                                  {usuario.activo ? "Activo" : "Inactivo"}
+                                </span>
+                              </td>
+                              <td className="p-2 text-sm text-muted-foreground">
+                                {format(
+                                  new Date(usuario.created_at),
+                                  "PP",
+                                  { locale: es }
+                                )}
+                              </td>
+                              <td className="p-2">
+                                <div className="flex gap-2">
                                   <Button
                                     size="sm"
-                                    variant="destructive"
-                                    onClick={() => setUsuarioParaEliminar(usuario)}
-                                    title="Eliminar usuario"
+                                    variant="outline"
+                                    onClick={() => setUsuarioParaEditar(usuario)}
+                                    title="Editar usuario"
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Settings className="h-3 w-3" />
                                   </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setUsuarioParaCambiarContraseña(usuario)}
+                                    title="Cambiar contraseña"
+                                  >
+                                    <KeyRound className="h-3 w-3" />
+                                  </Button>
+                                  {usuario.id !== perfil.id && usuario.rol !== "super_admin" && (
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => setUsuarioParaEliminar(usuario)}
+                                      title="Eliminar usuario"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                      {usuarios.map((usuario) => (
+                        <div key={usuario.id} className="border rounded-lg p-4 space-y-3 shadow-sm bg-card">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-lg">{usuario.nombre_completo || "Sin nombre"}</div>
+                              <div className="text-sm text-muted-foreground">{usuario.email}</div>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${usuario.rol === "super_admin"
+                                ? "bg-red-100 text-red-800"
+                                : usuario.rol === "admin"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : usuario.rol === "ventas"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-green-100 text-green-800"
+                                }`}
+                            >
+                              {usuario.rol === "super_admin"
+                                ? "Superadmin"
+                                : usuario.rol === "admin"
+                                  ? "Admin"
+                                  : usuario.rol === "ventas"
+                                    ? "Ventas"
+                                    : "Técnico"}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">RUN:</span> {usuario.run || "-"}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Estado:</span>
+                              <span className={usuario.activo ? "ml-1 text-green-600 font-medium" : "ml-1 text-red-600 font-medium"}>
+                                {usuario.activo ? "Activo" : "Inactivo"}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">Creado:</span> {format(new Date(usuario.created_at), "PP", { locale: es })}
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setUsuarioParaEditar(usuario)}
+                            >
+                              <Settings className="h-3 w-3 mr-1" /> Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setUsuarioParaCambiarContraseña(usuario)}
+                            >
+                              <KeyRound className="h-3 w-3 mr-1" /> Clave
+                            </Button>
+                            {usuario.id !== perfil.id && usuario.rol !== "super_admin" && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setUsuarioParaEliminar(usuario)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

@@ -104,12 +104,12 @@ export function TecnicoDashboard({ perfil }: { perfil: any }) {
     <div className="min-h-screen bg-background">
       <Navbar rol="tecnico" nombre={perfil.nombre_completo} />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <h2 className="text-3xl font-bold">Taller Técnico</h2>
           {!selectedTicket && (
-            <TicketViewToggle 
-              viewMode={viewMode} 
-              onViewModeChange={setViewMode} 
+            <TicketViewToggle
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
             />
           )}
         </div>
@@ -138,7 +138,7 @@ export function TecnicoDashboard({ perfil }: { perfil: any }) {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-3">
               <Tabs defaultValue="abiertos" className="w-full">
-                <TabsList>
+                <TabsList className="w-full justify-start overflow-x-auto h-auto p-1">
                   <TabsTrigger value="abiertos">
                     Tickets Abiertos ({ticketsAbiertos.length})
                   </TabsTrigger>
@@ -149,87 +149,87 @@ export function TecnicoDashboard({ perfil }: { perfil: any }) {
                     Reportes ({ticketsFinalizados.length})
                   </TabsTrigger>
                 </TabsList>
-            <TabsContent value="abiertos">
-              {loading ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Cargando tickets...</p>
-                </div>
-              ) : viewMode === "grid" ? (
-                <TicketList
-                  tickets={ticketsAbiertos}
-                  loading={false}
-                  onSelectTicket={(ticket) => {
-                    console.log("✅ Seleccionando ticket abierto:", ticket.id);
-                    setSelectedTicket(ticket);
-                  }}
-                  onAsignar={handleAsignarTicket}
-                  showAsignar={true}
-                />
-              ) : (
-                <TicketListView
-                  tickets={ticketsAbiertos}
-                  onViewDetail={(ticket) => {
-                    console.log("✅ Seleccionando ticket desde lista:", ticket.id);
-                    setSelectedTicket(ticket);
-                  }}
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="mios">
-              {loading ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Cargando tickets...</p>
-                </div>
-              ) : viewMode === "grid" ? (
-                <TicketList
-                  tickets={misTickets}
-                  loading={false}
-                  onSelectTicket={(ticket) => {
-                    console.log("✅ Seleccionando mi ticket:", ticket.id);
-                    setSelectedTicket(ticket);
-                  }}
-                  showAsignar={false}
-                />
-              ) : (
-                <TicketListView
-                  tickets={misTickets}
-                  onViewDetail={(ticket) => {
-                    console.log("✅ Seleccionando mi ticket desde lista:", ticket.id);
-                    setSelectedTicket(ticket);
-                  }}
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="finalizados">
-              {loading ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Cargando reportes...</p>
-                </div>
-              ) : ticketsFinalizados.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No hay reportes guardados aún
-                </div>
-              ) : viewMode === "grid" ? (
-                <TicketList
-                  tickets={ticketsFinalizados}
-                  loading={false}
-                  onSelectTicket={(ticket) => {
-                    console.log("✅ Seleccionando ticket finalizado:", ticket.id);
-                    setSelectedTicket(ticket);
-                  }}
-                  showAsignar={false}
-                />
-              ) : (
-                <TicketListView
-                  tickets={ticketsFinalizados}
-                  onViewDetail={(ticket) => {
-                    console.log("✅ Seleccionando ticket finalizado desde lista:", ticket.id);
-                    setSelectedTicket(ticket);
-                  }}
-                />
-              )}
-            </TabsContent>
-          </Tabs>
+                <TabsContent value="abiertos">
+                  {loading ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">Cargando tickets...</p>
+                    </div>
+                  ) : viewMode === "grid" ? (
+                    <TicketList
+                      tickets={ticketsAbiertos}
+                      loading={false}
+                      onSelectTicket={(ticket) => {
+                        console.log("✅ Seleccionando ticket abierto:", ticket.id);
+                        setSelectedTicket(ticket);
+                      }}
+                      onAsignar={handleAsignarTicket}
+                      showAsignar={true}
+                    />
+                  ) : (
+                    <TicketListView
+                      tickets={ticketsAbiertos}
+                      onViewDetail={(ticket) => {
+                        console.log("✅ Seleccionando ticket desde lista:", ticket.id);
+                        setSelectedTicket(ticket);
+                      }}
+                    />
+                  )}
+                </TabsContent>
+                <TabsContent value="mios">
+                  {loading ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">Cargando tickets...</p>
+                    </div>
+                  ) : viewMode === "grid" ? (
+                    <TicketList
+                      tickets={misTickets}
+                      loading={false}
+                      onSelectTicket={(ticket) => {
+                        console.log("✅ Seleccionando mi ticket:", ticket.id);
+                        setSelectedTicket(ticket);
+                      }}
+                      showAsignar={false}
+                    />
+                  ) : (
+                    <TicketListView
+                      tickets={misTickets}
+                      onViewDetail={(ticket) => {
+                        console.log("✅ Seleccionando mi ticket desde lista:", ticket.id);
+                        setSelectedTicket(ticket);
+                      }}
+                    />
+                  )}
+                </TabsContent>
+                <TabsContent value="finalizados">
+                  {loading ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">Cargando reportes...</p>
+                    </div>
+                  ) : ticketsFinalizados.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No hay reportes guardados aún
+                    </div>
+                  ) : viewMode === "grid" ? (
+                    <TicketList
+                      tickets={ticketsFinalizados}
+                      loading={false}
+                      onSelectTicket={(ticket) => {
+                        console.log("✅ Seleccionando ticket finalizado:", ticket.id);
+                        setSelectedTicket(ticket);
+                      }}
+                      showAsignar={false}
+                    />
+                  ) : (
+                    <TicketListView
+                      tickets={ticketsFinalizados}
+                      onViewDetail={(ticket) => {
+                        console.log("✅ Seleccionando ticket finalizado desde lista:", ticket.id);
+                        setSelectedTicket(ticket);
+                      }}
+                    />
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
             <div className="lg:col-span-1">
               <TecnicosActivos perfilActual={perfil} />

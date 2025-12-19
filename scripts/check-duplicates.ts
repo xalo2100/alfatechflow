@@ -17,7 +17,12 @@ async function checkDuplicateUsers() {
     // Obtener todos los perfiles
     const { data: perfiles, error } = await adminClient
         .from("perfiles")
-        .select("id, email, nombre_completo, rol, run, created_at")
+        .select(`
+            id, email, nombre_completo, rol, run, created_at,
+            tickets_creados:tickets!tickets_creado_por_fkey(count),
+            tickets_asignados:tickets!tickets_asignado_a_fkey(count),
+            reportes:reportes!reportes_tecnico_id_fkey(count)
+        `)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -70,6 +75,10 @@ async function checkDuplicateUsers() {
         console.log(`   Rol: ${u.rol}`);
         console.log(`   RUN: ${u.run || "N/A"}`);
         console.log(`   Creado: ${new Date(u.created_at).toLocaleString()}`);
+        console.log(`   📊 Actividad:`);
+        console.log(`      - Tickets Creados: ${(u.tickets_creados as any)?.[0]?.count || 0}`);
+        console.log(`      - Tickets Asignados: ${(u.tickets_asignados as any)?.[0]?.count || 0}`);
+        console.log(`      - Reportes: ${(u.reportes as any)?.[0]?.count || 0}`);
     });
 }
 
