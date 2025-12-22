@@ -28,11 +28,11 @@ export function ChatWidget({ currentUserId, currentUserName }: ChatWidgetProps) 
             {isOpen && (
                 <div
                     className={cn(
-                        "bg-background border rounded-lg shadow-xl mb-4 transition-all duration-300 overflow-hidden",
+                        "bg-background border rounded-lg shadow-xl mb-4 transition-all duration-300 overflow-hidden flex flex-col",
                         isMinimized ? "w-72 h-14" : "w-80 md:w-96 h-[500px]"
                     )}
                 >
-                    <div className="flex items-center justify-between p-3 bg-primary text-primary-foreground">
+                    <div className="flex items-center justify-between p-3 bg-primary text-primary-foreground z-20 relative shrink-0">
                         <div className="flex items-center gap-2 font-semibold">
                             <MessageCircle className="h-5 w-5" />
                             <span>Chat de Equipo</span>
@@ -60,14 +60,18 @@ export function ChatWidget({ currentUserId, currentUserName }: ChatWidgetProps) 
                     </div>
 
                     {!isMinimized && (
-                        <ChatWindow
-                            currentUserId={currentUserId}
-                            currentUserName={currentUserName}
-                            onNewMessage={() => {
-                                if (!isOpen) setHasUnread(true);
-                                // Play sound if needed
-                            }}
-                        />
+                        <div className="flex-1 relative min-h-0 z-10">
+                            <div className="absolute inset-0">
+                                <ChatWindow
+                                    currentUserId={currentUserId}
+                                    currentUserName={currentUserName}
+                                    onNewMessage={() => {
+                                        if (!isOpen) setHasUnread(true);
+                                        // Play sound if needed
+                                    }}
+                                />
+                            </div>
+                        </div>
                     )}
                 </div>
             )}
