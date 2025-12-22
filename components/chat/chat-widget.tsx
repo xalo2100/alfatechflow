@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MessageCircle, X, Minimize2, Maximize2 } from "lucide-react";
+import { MessageCircle, X, Minimize2, Maximize2, ChevronDown } from "lucide-react";
 import { ChatWindow } from "./chat-window";
 import { createClient } from "@/lib/supabase/client";
 
@@ -43,16 +43,18 @@ export function ChatWidget({ currentUserId, currentUserName }: ChatWidgetProps) 
                                 size="icon"
                                 className="h-6 w-6 text-primary-foreground hover:bg-primary/80"
                                 onClick={() => setIsMinimized(!isMinimized)}
+                                title={isMinimized ? "Maximizar" : "Minimizar"}
                             >
-                                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 text-primary-foreground hover:bg-primary/80"
                                 onClick={() => setIsOpen(false)}
+                                title="Cerrar chat"
                             >
-                                <X className="h-4 w-4" />
+                                <ChevronDown className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
