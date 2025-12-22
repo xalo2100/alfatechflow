@@ -12,19 +12,17 @@ interface UploadParams {
 }
 
 async function getCredentials() {
-    // 1. Try Environment Variables
+    // 1. Try Environment Variables (Legacy Service Account)
     if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
         return {
+            type: 'service_account',
             email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
             privateKey: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
             folderId: process.env.GOOGLE_DRIVE_FOLDER_ID
         };
     }
 
-    // 2. Try Supabase Database (configuraciones table)
-    // We need a SERVICE_ROLE client to read these sensitive configs safely if they are RLS protected for admins only
-    // or arguably just use the standard client if the caller has rights.
-    // Since this runs in a backend API route often, we probably use process.env.SUPABASE_SERVICE_ROLE_KEY
+    // 2. Try Supabase Database (Configuración)
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,7 +32,12 @@ async function getCredentials() {
         const { data, error } = await supabase
             .from('configuraciones')
             .select('clave, valor')
-            .in('clave', ['google_service_account_json', 'google_drive_folder_id']);
+            .in('clave', [
+                'google_service_account_json',
+                'google_drive_folder_id',
+                'google_drive_refresh_token',
+                'google_drive_email'
+            ]);
 
         if (!error && data) {
             const configMap = data.reduce((acc: any, curr) => {
@@ -42,10 +45,23 @@ async function getCredentials() {
                 return acc;
             }, {});
 
+            // A. OAuth Flow (Preferred)
+            if (configMap.google_drive_refresh_token && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+                return {
+                    type: 'oauth',
+                    clientId: process.env.GOOGLE_CLIENT_ID,
+                    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                    refreshToken: configMap.google_drive_refresh_token,
+                    folderId: configMap.google_drive_folder_id || undefined
+                };
+            }
+
+            // B. Service Account JSON Flow (Fallback)
             if (configMap.google_service_account_json) {
                 try {
                     const json = JSON.parse(configMap.google_service_account_json);
                     return {
+                        type: 'service_account',
                         email: json.client_email,
                         privateKey: json.private_key,
                         folderId: configMap.google_drive_folder_id || undefined
@@ -57,21 +73,31 @@ async function getCredentials() {
         }
     }
 
-    throw new Error("Missing Google Service Account credentials (env or db)");
+    throw new Error("Missing Google Drive credentials (OAuth or Service Account)");
 }
 
 export async function uploadToDrive({ fileName, mimeType, body, folderId }: UploadParams) {
-    const creds = await getCredentials();
+    const creds: any = await getCredentials();
+    let auth;
 
-    const auth = new google.auth.GoogleAuth({
-        credentials: {
-            client_email: creds.email,
-            private_key: creds.privateKey,
-        },
-        scopes: SCOPES,
-    });
+    if (creds.type === 'oauth') {
+        const oauth2Client = new google.auth.OAuth2(
+            creds.clientId,
+            creds.clientSecret
+        );
+        oauth2Client.setCredentials({ refresh_token: creds.refreshToken });
+        auth = oauth2Client;
+    } else {
+        auth = new google.auth.GoogleAuth({
+            credentials: {
+                client_email: creds.email,
+                private_key: creds.privateKey,
+            },
+            scopes: SCOPES,
+        });
+    }
 
-    const drive = google.drive({ version: 'v3', auth });
+    const drive = google.drive({ version: 'v3', auth: auth as any });
     const targetFolder = folderId || creds.folderId;
 
     try {
