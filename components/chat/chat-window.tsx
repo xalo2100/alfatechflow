@@ -40,7 +40,8 @@ export function ChatWindow({ currentUserId, currentUserName, onNewMessage }: Cha
             const { data } = await supabase
                 .from("perfiles")
                 .select("id, nombre_completo, email")
-                .neq("id", currentUserId); // Exclude self
+                .neq("id", currentUserId) // Exclude self
+                .order("nombre_completo");
 
             if (data) setUsers(data as any);
         };
