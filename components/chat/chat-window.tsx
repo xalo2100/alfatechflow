@@ -1,18 +1,3 @@
-"use client";
-
-import { useState, useEffect, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChatInput } from "./chat-input";
-import { MessageBubble } from "./message-bubble";
-import { Message } from "./types";
-import { Loader2 } from "lucide-react";
-
-interface ChatWindowProps {
-    currentUserId: string;
-    currentUserName: string;
-    onNewMessage: () => void;
-}
 
 "use client";
 
