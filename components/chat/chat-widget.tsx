@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MessageCircle, X, Minimize2, Maximize2 } from "lucide-react";
 import { ChatWindow } from "./chat-window";
 import { createClient } from "@/lib/supabase/client";
@@ -26,10 +27,10 @@ export function ChatWidget({ currentUserId, currentUserName }: ChatWidgetProps) 
 
             {isOpen && (
                 <div
-                    className={`
-                bg-background border rounded-lg shadow-xl mb-4 transition-all duration-300 overflow-hidden
-                ${isMinimized ? 'w-72 h-14' : 'w-80 md:w-96 h-[500px]'}
-            `}
+                    className={cn(
+                        "bg-background border rounded-lg shadow-xl mb-4 transition-all duration-300 overflow-hidden",
+                        isMinimized ? "w-72 h-14" : "w-80 md:w-96 h-[500px]"
+                    )}
                 >
                     <div className="flex items-center justify-between p-3 bg-primary text-primary-foreground">
                         <div className="flex items-center gap-2 font-semibold">
@@ -77,7 +78,10 @@ export function ChatWidget({ currentUserId, currentUserName }: ChatWidgetProps) 
                         setHasUnread(false);
                     }}
                     size="lg"
-                    className={`rounded-full shadow-lg h-14 w-14 ${hasUnread ? 'animate-bounce bg-red-500 hover:bg-red-600' : ''}`}
+                    className={cn(
+                        "rounded-full shadow-lg h-14 w-14",
+                        hasUnread && "animate-bounce bg-red-500 hover:bg-red-600"
+                    )}
                 >
                     <MessageCircle className="h-6 w-6" />
                     {hasUnread && (
