@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { format, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2, Database as DatabaseIcon, Mail } from "lucide-react";
+import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2, Database as DatabaseIcon, Mail, HardDrive } from "lucide-react";
 import { PersonalizacionDialog } from "@/components/admin/personalizacion-dialog";
 import { SupabaseStatus } from "@/components/admin/supabase-status";
 import { PipedriveStatus } from "@/components/admin/pipedrive-status";
@@ -28,6 +28,7 @@ import { ConfigApiDialog } from "@/components/admin/config-api-dialog";
 import { ConfigPipedriveDialog } from "@/components/admin/config-pipedrive-dialog";
 import { ConfigSupabaseDialog } from "@/components/admin/config-supabase-dialog";
 import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
+import { ConfigDriveDialog } from "@/components/admin/config-drive-dialog";
 import { TicketDetail } from "@/components/tecnico/ticket-detail";
 import { EmpresasManager } from "@/components/admin/empresas-manager";
 import { ReportesDashboard } from "@/components/reportes/dashboard";
@@ -68,6 +69,7 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const [showConfigPipedrive, setShowConfigPipedrive] = useState(false);
   const [showConfigSupabase, setShowConfigSupabase] = useState(false);
   const [showConfigResend, setShowConfigResend] = useState(false);
+  const [showConfigDrive, setShowConfigDrive] = useState(false);
   const [showPersonalizacion, setShowPersonalizacion] = useState(false);
   const [usuarioParaEditar, setUsuarioParaEditar] = useState<UsuarioCompleto | null>(null);
   const [usuarioParaEliminar, setUsuarioParaEliminar] = useState<UsuarioCompleto | null>(null);
@@ -814,6 +816,24 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
+                  <HardDrive className="h-5 w-5" />
+                  Respaldo Google Drive
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configura las credenciales para el respaldo automático de chats en Drive.
+                </p>
+                <Button onClick={() => setShowConfigDrive(true)} variant="outline">
+                  <HardDrive className="h-4 w-4 mr-2" />
+                  Configurar Drive
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <DatabaseIcon className="h-5 w-5" />
                   Configuración de Supabase
                 </CardTitle>
@@ -1000,6 +1020,10 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           onConfirmDelete={handleEliminarTicket}
         />
       )}
+      <ConfigDriveDialog
+        open={showConfigDrive}
+        onOpenChange={setShowConfigDrive}
+      />
     </div>
   );
 }
