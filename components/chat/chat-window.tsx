@@ -1,4 +1,6 @@
-
+/**
+ * Chat component with support for group and direct messages.
+ */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
