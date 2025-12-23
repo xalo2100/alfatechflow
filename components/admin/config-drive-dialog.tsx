@@ -152,6 +152,12 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
                                         Conectar Google Drive
                                     </span>
                                 </Button>
+
+                                <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded text-[10px] text-blue-700 font-mono break-all">
+                                    <p className="font-bold mb-1">URI de Redireccionamiento (para Google Console):</p>
+                                    <p>{typeof window !== 'undefined' ? `${window.location.origin}/api/auth/google/callback` : 'Cargando...'}</p>
+                                    <p className="mt-2 text-blue-500 italic">Asegúrate de que este exacto valor esté en "URIs de redireccionamiento autorizados" en tu proyecto de Google Cloud.</p>
+                                </div>
                             </div>
                         )}
                     </div>

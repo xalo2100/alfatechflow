@@ -12,22 +12,29 @@ const supabaseAdmin = createClient(
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const code = searchParams.get("code");
-    const error = searchParams.get("error");
+    const oauthError = searchParams.get("error");
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
 
-    if (error) {
-        return NextResponse.redirect(`${appUrl}/admin?config_error=${error}`);
+    if (oauthError) {
+        console.error("[OAUTH ERROR] Error from Google:", oauthError);
+        return NextResponse.redirect(`${appUrl}/admin?config_error=${encodeURIComponent(oauthError)}`);
     }
 
     if (!code) {
-        return NextResponse.redirect(`${appUrl}/admin?config_error=no_code`);
+        return NextResponse.redirect(`${appUrl}/admin?config_error=no_code_provided`);
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const redirectUri = `${appUrl}/api/auth/google/callback`;
 
+    if (!clientId || !clientSecret) {
+        console.error("[OAUTH ERROR] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.");
+        return NextResponse.redirect(`${appUrl}/admin?config_error=missing_server_credentials`);
+    }
+
     try {
+        console.log("[OAUTH DEBUG] Initiating token exchange...");
         const oauth2Client = new google.auth.OAuth2(
             clientId,
             clientSecret,
@@ -37,38 +44,23 @@ export async function GET(req: NextRequest) {
         const { tokens } = await oauth2Client.getToken(code);
         oauth2Client.setCredentials(tokens);
 
-        console.log("[OAUTH DEBUG] Tokens Received:", {
-            has_access_token: !!tokens.access_token,
-            has_refresh_token: !!tokens.refresh_token,
-            expiry_date: tokens.expiry_date
-        });
-
-        if (!tokens.refresh_token) {
-            console.warn("[OAUTH WARNING] No refresh_token returned.");
-        }
+        console.log("[OAUTH DEBUG] Tokens Received successfully");
 
         const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
         const userInfo = await oauth2.userinfo.get();
         const email = userInfo.data.email;
 
-        console.log("[OAUTH DEBUG] User Email:", email);
+        console.log("[OAUTH DEBUG] Authenticated as:", email);
 
-        // --- AUTOMATED FOLDER CREATION START ---
-        console.log("[OAUTH DEBUG] Starting automatic folder creation...");
-
-        // 1. Create/Find Root Folder "TechFlow Backup"
+        // --- AUTOMATED FOLDER CREATION ---
+        console.log("[OAUTH DEBUG] Preparing folder structure...");
         const rootFolderId = await findOrCreateFolder(oauth2Client, "TechFlow Backup");
-
-        // 2. Create/Find Subfolder "Conversaciones Guardadas" inside Root
         const targetFolderId = await findOrCreateFolder(oauth2Client, "Conversaciones Guardadas", rootFolderId);
-
-        console.log(`[OAUTH DEBUG] Target Folder ID: ${targetFolderId}`);
-        // --- AUTOMATED FOLDER CREATION END ---
+        console.log("[OAUTH DEBUG] Target Folder ID established:", targetFolderId);
 
         const updates = [];
 
         if (tokens.refresh_token) {
-            console.log("[OAUTH DEBUG] Saving refresh token...");
             updates.push(
                 supabaseAdmin.from("configuraciones").upsert({
                     clave: "google_drive_refresh_token",
@@ -79,7 +71,6 @@ export async function GET(req: NextRequest) {
         }
 
         if (email) {
-            console.log("[OAUTH DEBUG] Saving email...");
             updates.push(
                 supabaseAdmin.from("configuraciones").upsert({
                     clave: "google_drive_email",
@@ -89,9 +80,7 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Save Automagically Created Folder ID
         if (targetFolderId) {
-            console.log("[OAUTH DEBUG] Saving folder ID...");
             updates.push(
                 supabaseAdmin.from("configuraciones").upsert({
                     clave: "google_drive_folder_id",
@@ -102,16 +91,19 @@ export async function GET(req: NextRequest) {
         }
 
         const results = await Promise.all(updates);
-        console.log("[OAUTH DEBUG] Results:", results);
+        const dbError = results.find(r => r.error);
 
-        if (results.some(r => r.error)) {
-            console.error("[OAUTH ERROR]", results.map(r => r.error));
+        if (dbError) {
+            console.error("[OAUTH ERROR] Database update failed:", dbError.error);
+            return NextResponse.redirect(`${appUrl}/admin?config_error=database_update_failed`);
         }
 
+        console.log("[OAUTH SUCCESS] Google Drive connection complete");
         return NextResponse.redirect(`${appUrl}/admin?config_success=drive_connected`);
 
     } catch (err: any) {
-        console.error("Error exchanging code for token", err);
-        return NextResponse.redirect(`${appUrl}/admin?config_error=${encodeURIComponent(err.message)}`);
+        console.error("[OAUTH CRITICAL ERROR]", err);
+        const errorMessage = err.response?.data?.error_description || err.message || "Unknown error";
+        return NextResponse.redirect(`${appUrl}/admin?config_error=${encodeURIComponent(errorMessage)}`);
     }
 }
