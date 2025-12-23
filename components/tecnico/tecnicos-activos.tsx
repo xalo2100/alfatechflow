@@ -6,87 +6,74 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Clock } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
-import { format } from "date-fns";
+import { format, subMinutes, isAfter } from "date-fns";
 import { es } from "date-fns/locale";
 import { getTimezone } from "@/lib/timezone";
 
-interface TecnicoActivo {
-  tecnico_id: string;
+interface PerfilConActividad {
+  id: string;
   nombre_completo: string;
-  ticket_id: number;
-  cliente_nombre: string;
-  estado: string;
-  ultima_actividad: string;
+  email: string;
+  last_seen: string | null;
+  tickets: {
+    id: number;
+    cliente_nombre: string;
+    estado: string;
+    updated_at: string;
+  }[];
 }
 
 export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
-  const [tecnicosActivos, setTecnicosActivos] = useState<TecnicoActivo[]>([]);
+  const [compañeros, setCompañeros] = useState<PerfilConActividad[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const supabase = createClient();
 
-  const fetchTecnicosActivos = async () => {
+  const fetchActividad = async () => {
     try {
-      // Obtener todos los tickets activos con sus técnicos asignados
-      const { data: ticketsActivos, error } = await supabase
+      // 1. Obtener todos los perfiles (colegas)
+      const { data: perfiles, error: errorPerfiles } = await supabase
+        .from("perfiles")
+        .select("id, nombre_completo, email, last_seen")
+        .neq("id", perfilActual.id)
+        .order("nombre_completo");
+
+      if (errorPerfiles) throw errorPerfiles;
+
+      // 2. Obtener tickets activos
+      const { data: ticketsActivos, error: errorTickets } = await supabase
         .from("tickets")
-        .select(`
-          id,
-          cliente_nombre,
-          estado,
-          asignado_a,
-          updated_at,
-          tecnico:perfiles!tickets_asignado_a_fkey(nombre_completo, id)
-        `)
+        .select("id, cliente_nombre, estado, asignado_a, updated_at")
         .in("estado", ["asignado", "en_proceso", "espera_repuesto"])
         .not("asignado_a", "is", null);
 
-      if (error) {
-        console.error("Error fetching técnicos activos:", error);
-        return;
-      }
+      if (errorTickets) throw errorTickets;
 
-      // Filtrar y formatear los datos
-      const activos: TecnicoActivo[] = (ticketsActivos || [])
-        .filter((ticket: any) => ticket.tecnico && ticket.tecnico.id !== perfilActual.id)
-        .map((ticket: any) => ({
-          tecnico_id: ticket.tecnico.id,
-          nombre_completo: ticket.tecnico.nombre_completo,
-          ticket_id: ticket.id,
-          cliente_nombre: ticket.cliente_nombre,
-          estado: ticket.estado,
-          ultima_actividad: ticket.updated_at,
-        }));
+      // 3. Mapear actividad
+      const data: PerfilConActividad[] = (perfiles || []).map(p => ({
+        ...p,
+        tickets: (ticketsActivos || []).filter(t => t.asignado_a === p.id)
+      }));
 
-      setTecnicosActivos(activos);
+      setCompañeros(data);
     } catch (error) {
-      console.error("Error en fetchTecnicosActivos:", error);
+      console.error("Error en fetchActividad:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTecnicosActivos();
+    fetchActividad();
 
-    // Suscripción a cambios en tiempo real
+    // Suscripción en tiempo real a perfiles (para presencia) y tickets (para actividad)
     const channel = supabase
-      .channel("tecnicos-activos")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tickets",
-        },
-        () => {
-          fetchTecnicosActivos();
-        }
-      )
+      .channel("presencia-y-actividad")
+      .on("postgres_changes", { event: "*", schema: "public", table: "perfiles" }, () => fetchActividad())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => fetchActividad())
       .subscribe();
 
-    // Actualizar cada 30 segundos para mantener la información fresca
-    const interval = setInterval(fetchTecnicosActivos, 30000);
+    const interval = setInterval(fetchActividad, 1 * 60 * 1000); // Cada minuto
 
     return () => {
       supabase.removeChannel(channel);
@@ -94,56 +81,25 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
     };
   }, [supabase, perfilActual.id]);
 
+  const timezone = getTimezone();
+  const now = new Date();
+  const fiveMinutesAgo = subMinutes(now, 5);
+
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="py-3">
+          <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-5 w-5" />
             Compañeros Activos
+            <Loader2 className="h-4 w-4 animate-spin ml-auto" />
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Cargando...</p>
-        </CardContent>
       </Card>
     );
   }
-
-  if (tecnicosActivos.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Compañeros Activos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            No hay otros técnicos trabajando en este momento
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Agrupar por técnico
-  const tecnicosAgrupados = tecnicosActivos.reduce((acc, activo) => {
-    if (!acc[activo.tecnico_id]) {
-      acc[activo.tecnico_id] = {
-        tecnico: activo,
-        tickets: [],
-      };
-    }
-    acc[activo.tecnico_id].tickets.push(activo);
-    return acc;
-  }, {} as Record<string, { tecnico: TecnicoActivo; tickets: TecnicoActivo[] }>);
-
-  const timezone = getTimezone();
 
   return (
-
     <Card>
       <CardHeader className="py-3">
         <button
@@ -152,66 +108,59 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
         >
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-5 w-5" />
-            Compañeros Activos ({Object.keys(tecnicosAgrupados).length})
+            Compañeros Activos ({compañeros.length})
           </CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {isOpen ? "Ocultar" : "Ver Actividad"}
+            {isOpen ? "Ocultar" : "Ver Lista"}
           </Badge>
         </button>
       </CardHeader>
+
       {isOpen && (
         <CardContent className="space-y-4 pt-0">
-          {Object.values(tecnicosAgrupados).map((grupo) => {
-            const tecnico = grupo.tecnico;
-            const ultimaActividad = new Date(
-              Math.max(...grupo.tickets.map((t) => new Date(t.ultima_actividad).getTime()))
-            );
+          {compañeros.map((colega) => {
+            const isOnline = colega.last_seen && isAfter(new Date(colega.last_seen), fiveMinutesAgo);
+            const ultimaActividad = colega.last_seen ? new Date(colega.last_seen) : null;
 
             return (
-              <div
-                key={tecnico.tecnico_id}
-                className="border rounded-lg p-3 space-y-2 bg-card"
-              >
+              <div key={colega.id} className="border rounded-lg p-3 space-y-2 bg-card">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="font-semibold">{tecnico.nombre_completo}</span>
+                    <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                    <span className="font-semibold">{colega.nombre_completo}</span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded uppercase">
+                      {isOnline ? 'En línea' : 'Desconectado'}
+                    </span>
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    {grupo.tickets.length} {grupo.tickets.length === 1 ? "ticket" : "tickets"}
+                    {colega.tickets.length} {colega.tickets.length === 1 ? "ticket" : "tickets"}
                   </Badge>
                 </div>
-                <div className="space-y-1 pl-4">
-                  {grupo.tickets.map((ticket) => (
-                    <div
-                      key={ticket.ticket_id}
-                      className="text-sm flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Ticket #{ticket.ticket_id}:</span>
-                        <span className="font-medium">{ticket.cliente_nombre}</span>
+
+                {colega.tickets.length > 0 && (
+                  <div className="space-y-1 pl-5">
+                    {colega.tickets.map((ticket) => (
+                      <div key={ticket.id} className="text-sm flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">#{ticket.id}:</span>
+                          <span className="font-medium text-xs truncate max-w-[150px]">{ticket.cliente_nombre}</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] h-5 px-1 bg-primary/5">
+                          {ticket.estado.replace("_", " ")}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          ticket.estado === "en_proceso"
-                            ? "bg-yellow-500 text-white border-yellow-600"
-                            : ticket.estado === "espera_repuesto"
-                              ? "bg-orange-500 text-white border-orange-600"
-                              : "bg-blue-500 text-white border-blue-600"
-                        }
-                      >
-                        {ticket.estado.replace("_", " ")}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground pl-4">
-                  <Clock className="h-3 w-3" />
-                  <span>
-                    Última actividad: {formatInTimeZone(ultimaActividad, timezone, "PPp", { locale: es })}
-                  </span>
-                </div>
+                    ))}
+                  </div>
+                )}
+
+                {ultimaActividad && (
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground pl-5 pt-1 border-t border-dashed mt-1">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      Visto por última vez: {formatInTimeZone(ultimaActividad, timezone, "p", { locale: es })}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -221,3 +170,4 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
   );
 }
 
+import { Loader2 } from "lucide-react";

@@ -12,10 +12,11 @@ const compressImage = async (file: File): Promise<File> => {
 
 interface ChatInputProps {
     currentUserId: string;
+    currentUserName: string;
     receiverId?: string | null;
 }
 
-export function ChatInput({ currentUserId, receiverId }: ChatInputProps) {
+export function ChatInput({ currentUserId, currentUserName, receiverId }: ChatInputProps) {
     const [message, setMessage] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -71,6 +72,20 @@ export function ChatInput({ currentUserId, receiverId }: ChatInputProps) {
             if (error) {
                 console.error("Error sending message:", error);
             } else {
+                // --- PUSH NOTIFICATION START ---
+                if (receiverId) {
+                    fetch("/api/push/send", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            userId: receiverId,
+                            title: `Mensaje de ${currentUserName}`,
+                            body: mediaType === "image" ? "📷 Imagen enviada" : (message.trim() || "Tienes un nuevo mensaje"),
+                            url: "/admin"
+                        })
+                    }).catch(err => console.error("Error triggering push:", err));
+                }
+                // --- PUSH NOTIFICATION END ---
+
                 setMessage("");
                 setSelectedImage(null);
             }
@@ -114,7 +129,23 @@ export function ChatInput({ currentUserId, receiverId }: ChatInputProps) {
                 expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
             });
 
-            if (error) console.error("Error sending voice note:", error);
+            if (error) {
+                console.error("Error sending voice note:", error);
+            } else {
+                // --- PUSH NOTIFICATION START ---
+                if (receiverId) {
+                    fetch("/api/push/send", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            userId: receiverId,
+                            title: `Nota de voz de ${currentUserName}`,
+                            body: "🎤 Mensaje de audio",
+                            url: "/admin"
+                        })
+                    }).catch(err => console.error("Error triggering push for audio:", err));
+                }
+                // --- PUSH NOTIFICATION END ---
+            }
 
         } catch (error) {
             console.error("Error upload audio:", error);

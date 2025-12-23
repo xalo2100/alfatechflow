@@ -12,6 +12,7 @@ import { Message, ChatUser } from "./types";
 import { Loader2, Users, ArrowLeft, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NotificationToggle } from "@/components/notification-manager";
 
 interface ChatWindowProps {
     currentUserId: string;
@@ -219,9 +220,12 @@ export function ChatWindow({ currentUserId, currentUserName, onNewMessage }: Cha
                         </>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setView('users')}>
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                </Button>
+                <div className="flex items-center gap-1">
+                    <NotificationToggle />
+                    <Button variant="ghost" size="icon" onClick={() => setView('users')}>
+                        <Users className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
@@ -251,6 +255,7 @@ export function ChatWindow({ currentUserId, currentUserName, onNewMessage }: Cha
             <div className="p-3 bg-background border-t">
                 <ChatInput
                     currentUserId={currentUserId}
+                    currentUserName={currentUserName}
                     receiverId={activeChat?.id}
                 />
             </div>

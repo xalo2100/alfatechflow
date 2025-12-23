@@ -9,6 +9,9 @@ import { DynamicTitle } from "@/components/dynamic-title";
 import { ChatWrapper } from "@/components/chat/chat-wrapper";
 import type { User } from "@supabase/supabase-js";
 
+import { PresenceManager } from "@/components/presence-manager";
+import { NotificationManager } from "@/components/notification-manager";
+
 type UserContextType = {
   user: User | null;
   loading: boolean;
@@ -52,15 +55,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-
-
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AppConfigLoader />
       <DynamicFavicon />
       <DynamicTitle />
+      <NotificationManager />
 
       <UserContext.Provider value={{ user, loading }}>
+        <PresenceManager />
         {children}
         <ChatWrapper />
       </UserContext.Provider>
