@@ -118,3 +118,46 @@ export async function uploadToDrive({ fileName, mimeType, body, folderId }: Uplo
         throw error;
     }
 }
+
+export async function findOrCreateFolder(auth: any, folderName: string, parentId?: string): Promise<string> {
+    const drive = google.drive({ version: 'v3', auth });
+
+    // 1. Check if folder exists
+    const query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false${parentId ? ` and '${parentId}' in parents` : ''}`;
+
+    try {
+        const res = await drive.files.list({
+            q: query,
+            fields: 'files(id, name)',
+            spaces: 'drive',
+        });
+
+        if (res.data.files && res.data.files.length > 0) {
+            console.log(`Folder found: ${folderName} (ID: ${res.data.files[0].id})`);
+            return res.data.files[0].id!;
+        }
+
+        // 2. Create if not exists
+        console.log(`Folder not found, creating: ${folderName}`);
+        const fileMetadata: any = {
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder',
+        };
+
+        if (parentId) {
+            fileMetadata.parents = [parentId];
+        }
+
+        const file = await drive.files.create({
+            requestBody: fileMetadata,
+            fields: 'id',
+        });
+
+        console.log(`Folder created: ${folderName} (ID: ${file.data.id})`);
+        return file.data.id!;
+
+    } catch (err) {
+        console.error(`Error finding/creating folder ${folderName}:`, err);
+        throw err;
+    }
+}

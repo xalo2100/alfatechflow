@@ -7,10 +7,7 @@ export async function GET(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, ""); // Remove trailing slash if present
 
     if (!clientId || !clientSecret || !appUrl) {
-        return NextResponse.json(
-            { error: "Configuration Error: Missing Google Client ID, Secret, or App URL" },
-            { status: 500 }
-        );
+        return NextResponse.redirect(`${appUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/admin?config_error=missing_env_vars`);
     }
 
     const redirectUri = `${appUrl}/api/auth/google/callback`;

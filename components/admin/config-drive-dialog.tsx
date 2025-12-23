@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { HardDrive, CheckCircle2, AlertCircle, LogOut, ArrowRight } from "lucide-react";
+import { HardDrive, CheckCircle2, AlertCircle, LogOut, ArrowRight, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -16,10 +16,8 @@ interface ConfigDriveDialogProps {
 }
 
 export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps) {
-    const [folderId, setFolderId] = useState("");
     const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
     const supabase = createClient();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -36,9 +34,11 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
         const error = searchParams.get("config_error");
 
         if (success === "drive_connected") {
-            toast.success("Google Drive conectado exitosamente");
+            toast.success("Google Drive conectado y carpeta configurada");
             // Clean URL
             router.replace("/admin");
+            // Reload to show connected state immediately
+            loadConfig();
         } else if (error) {
             toast.error(`Error de conexión: ${error}`);
             router.replace("/admin");
@@ -51,18 +51,13 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
             const { data, error } = await supabase
                 .from("configuraciones")
                 .select("clave, valor")
-                .in("clave", ["google_drive_folder_id", "google_drive_email"]);
+                .in("clave", ["google_drive_email"]);
 
             if (error) throw error;
 
             if (data) {
-                data.forEach((item) => {
-                    if (item.clave === "google_drive_folder_id") {
-                        setFolderId(item.valor || "");
-                    } else if (item.clave === "google_drive_email") {
-                        setConnectedEmail(item.valor || null);
-                    }
-                });
+                const emailConfig = data.find(item => item.clave === "google_drive_email");
+                setConnectedEmail(emailConfig?.valor || null);
             }
         } catch (error) {
             console.error("Error loading config:", error);
@@ -85,7 +80,7 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
             await supabase
                 .from("configuraciones")
                 .delete()
-                .in("clave", ["google_drive_refresh_token", "google_drive_email"]);
+                .in("clave", ["google_drive_refresh_token", "google_drive_email", "google_drive_folder_id"]);
 
             setConnectedEmail(null);
             toast.success("Google Drive desconectado");
@@ -94,28 +89,6 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
             toast.error("Error al desconectar");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            // Update folder ID
-            const { error } = await supabase.from("configuraciones").upsert({
-                clave: "google_drive_folder_id",
-                valor: folderId,
-                descripcion: "ID de la carpeta de destino en Google Drive"
-            }, { onConflict: "clave" });
-
-            if (error) throw error;
-
-            toast.success("Configuración de carpeta guardada");
-            onOpenChange(false);
-        } catch (error) {
-            console.error("Error saving config:", error);
-            toast.error("Error al guardar la configuración");
-        } finally {
-            setSaving(false);
         }
     };
 
@@ -150,10 +123,19 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
                         </div>
 
                         {connectedEmail ? (
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-4">
                                 <div className="text-sm text-gray-600">
                                     Conectado como: <span className="font-semibold text-gray-900">{connectedEmail}</span>
                                 </div>
+
+                                <div className="flex items-start gap-2 p-3 bg-white/50 rounded border border-green-100">
+                                    <FolderOpen className="h-4 w-4 text-green-600 mt-0.5" />
+                                    <div className="text-xs text-gray-600">
+                                        <p className="font-semibold text-green-700">Carpeta Automática Configurada</p>
+                                        <p>TechFlow Backup / Conversaciones Guardadas</p>
+                                    </div>
+                                </div>
+
                                 <Button variant="outline" size="sm" onClick={handleDisconnect} className="self-start text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
                                     <LogOut className="h-4 w-4 mr-2" />
                                     Desconectar Cuenta
@@ -162,30 +144,16 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
                         ) : (
                             <div className="flex flex-col gap-2">
                                 <p className="text-xs text-muted-foreground">
-                                    Necesitas iniciar sesión con Google y autorizar el acceso a Drive.
+                                    El sistema creará automáticamente la carpeta "TechFlow Backup" en tu Drive.
                                 </p>
                                 <Button onClick={handleConnect} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                                     <span className="flex items-center gap-2">
-                                        Conectar Google Drive <ArrowRight className="h-4 w-4" />
+                                        <HardDrive className="h-4 w-4" />
+                                        Conectar Google Drive
                                     </span>
                                 </Button>
                             </div>
                         )}
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="folderId">ID de Carpeta Google Drive</Label>
-                        <Input
-                            id="folderId"
-                            placeholder="Ej: 1ABC... (el ID en la URL de la carpeta)"
-                            value={folderId}
-                            onChange={(e) => setFolderId(e.target.value)}
-                            disabled={loading}
-                            className="font-mono"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            El ID que aparece en la URL al abrir la carpeta de destino en Drive.
-                        </p>
                     </div>
 
                 </div>
@@ -193,9 +161,6 @@ export function ConfigDriveDialog({ open, onOpenChange }: ConfigDriveDialogProps
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Cerrar
-                    </Button>
-                    <Button onClick={handleSave} disabled={saving || loading}>
-                        {saving ? "Guardando..." : "Guardar ID"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

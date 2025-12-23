@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createClient } from "@supabase/supabase-js";
+import { findOrCreateFolder } from "@/lib/google-drive";
 
 // Initialize Supabase Admin for DB updates
 const supabaseAdmin = createClient(
@@ -36,26 +37,38 @@ export async function GET(req: NextRequest) {
         const { tokens } = await oauth2Client.getToken(code);
         oauth2Client.setCredentials(tokens);
 
-        // If we didn't get a refresh token, we can't do offline access.
-        // This happens if the user already granted access and we didn't use prompt=consent.
-        // Our signin route uses prompt=consent, so we should be good.
+        console.log("[OAUTH DEBUG] Tokens Received:", {
+            has_access_token: !!tokens.access_token,
+            has_refresh_token: !!tokens.refresh_token,
+            expiry_date: tokens.expiry_date
+        });
+
         if (!tokens.refresh_token) {
-            console.warn("No refresh_token returned. User might need to revoke access first to reset.");
-            // We can't proceed effectively without a refresh token for a cron job
-            // unless we store the access token and it happens to be valid for the job (unlikely long term).
-            // For now, we'll try to save what we have, but ideally prompt user.
+            console.warn("[OAUTH WARNING] No refresh_token returned.");
         }
 
-        // Get user info to identify the connection
         const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
         const userInfo = await oauth2.userinfo.get();
         const email = userInfo.data.email;
 
-        // Save tokens to DB
+        console.log("[OAUTH DEBUG] User Email:", email);
+
+        // --- AUTOMATED FOLDER CREATION START ---
+        console.log("[OAUTH DEBUG] Starting automatic folder creation...");
+
+        // 1. Create/Find Root Folder "TechFlow Backup"
+        const rootFolderId = await findOrCreateFolder(oauth2Client, "TechFlow Backup");
+
+        // 2. Create/Find Subfolder "Conversaciones Guardadas" inside Root
+        const targetFolderId = await findOrCreateFolder(oauth2Client, "Conversaciones Guardadas", rootFolderId);
+
+        console.log(`[OAUTH DEBUG] Target Folder ID: ${targetFolderId}`);
+        // --- AUTOMATED FOLDER CREATION END ---
+
         const updates = [];
 
-        // Save Refresh Token (if present)
         if (tokens.refresh_token) {
+            console.log("[OAUTH DEBUG] Saving refresh token...");
             updates.push(
                 supabaseAdmin.from("configuraciones").upsert({
                     clave: "google_drive_refresh_token",
@@ -65,8 +78,8 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Save Email
         if (email) {
+            console.log("[OAUTH DEBUG] Saving email...");
             updates.push(
                 supabaseAdmin.from("configuraciones").upsert({
                     clave: "google_drive_email",
@@ -76,7 +89,24 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        await Promise.all(updates);
+        // Save Automagically Created Folder ID
+        if (targetFolderId) {
+            console.log("[OAUTH DEBUG] Saving folder ID...");
+            updates.push(
+                supabaseAdmin.from("configuraciones").upsert({
+                    clave: "google_drive_folder_id",
+                    valor: targetFolderId,
+                    descripcion: "ID de la carpeta 'Conversaciones Guardadas' en Google Drive"
+                }, { onConflict: "clave" })
+            );
+        }
+
+        const results = await Promise.all(updates);
+        console.log("[OAUTH DEBUG] Results:", results);
+
+        if (results.some(r => r.error)) {
+            console.error("[OAUTH ERROR]", results.map(r => r.error));
+        }
 
         return NextResponse.redirect(`${appUrl}/admin?config_success=drive_connected`);
 
