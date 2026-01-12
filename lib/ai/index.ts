@@ -57,14 +57,14 @@ export async function resolverModelo(tarea: string) {
     if (tarea === 'informeTecnico') {
         return {
             provider: config.preferredProvider,
-            model: config.preferredProvider === 'local' ? 'phi3' : 'gemini-2.0-flash'
+            model: config.preferredProvider === 'local' ? 'gemma2:2b' : 'gemini-2.0-flash'
         };
     }
 
     // Default: Usar el preferido
     return {
         provider: config.preferredProvider,
-        model: config.preferredProvider === 'local' ? 'phi3' : 'gemini-2.0-flash'
+        model: config.preferredProvider === 'local' ? 'gemma2:2b' : 'gemini-2.0-flash'
     };
 }
 
@@ -105,7 +105,7 @@ export async function callAI(req: AIRequest): Promise<AIResponse> {
             return await providers[fallbackProvider].call({
                 ...req,
                 provider: fallbackProvider,
-                model: fallbackProvider === 'gemini' ? 'gemini-2.0-flash' : 'phi3'
+                model: fallbackProvider === 'gemini' ? 'gemini-2.0-flash' : 'gemma2:2b'
             });
         } catch (fallbackError) {
             console.error(`[AI ERROR] Fallback also failed:`, fallbackError);

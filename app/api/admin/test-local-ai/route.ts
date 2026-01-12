@@ -26,47 +26,43 @@ export async function GET(request: NextRequest) {
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
 
         try {
-            // Intentamos obtener modelos si existe /v1/models
-            const baseUrl = url.replace(/\/v1\/chat$/, "");
-            const testUrl = `${baseUrl}/v1/models`;
+            // Prueba exacta con el modelo y mensaje solicitado por el usuario
+            console.log(`[TEST LOCAL AI] Enviando mensaje de prueba a ${url}`);
 
-            const response = await fetch(testUrl, {
+            const mainRes = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: "gemma2:2b",
+                    messages: [
+                        { role: "user", content: "Hola, respóndeme solo: OK" }
+                    ]
+                }),
                 signal: controller.signal
             });
+
             clearTimeout(timeoutId);
 
-            if (response.ok) {
-                const data = await response.json();
-                return NextResponse.json({
-                    success: true,
-                    connected: true,
-                    url: url,
-                    details: {
-                        models: data.data?.map((m: any) => m.id) || ["phi3"]
-                    }
-                });
-            } else {
-                // Si /v1/models falla, probamos el endpoint principal
-                const mainRes = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: [{ role: 'user', content: 'test' }], max_tokens: 1 }),
-                    signal: controller.signal
-                });
+            if (mainRes.ok) {
+                const resultData = await mainRes.json();
 
-                if (mainRes.ok) {
+                if (resultData.choices?.[0]?.message?.content) {
                     return NextResponse.json({
                         success: true,
                         connected: true,
                         url: url,
                         details: {
-                            message: "Endpoint responde correctamente a peticiones"
+                            model: "gemma2:2b",
+                            response: resultData.choices[0].message.content,
+                            message: "Servidor responde correctamente con el formato esperado."
                         }
                     });
                 }
 
-                throw new Error(`Servidor respondió con status: ${mainRes.status}`);
+                throw new Error("El servidor respondió pero el formato JSON no es el esperado (choices[0].message.content)");
             }
+
+            throw new Error(`Servidor respondió con status: ${mainRes.status}`);
         } catch (fetchError: any) {
             clearTimeout(timeoutId);
             console.error("[TEST LOCAL AI] Error en fetch:", fetchError.message);

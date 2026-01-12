@@ -3,7 +3,7 @@ import { AIProviderImplementation, AIRequest, AIResponse } from "../types";
 export class LocalVPSProvider implements AIProviderImplementation {
     async call(req: AIRequest): Promise<AIResponse> {
         const url = process.env.DYNAMIC_LOCAL_AI_URL || process.env.LOCAL_AI_URL || "http://184.174.36.189:3000/v1/chat";
-        const modelName = req.model || "phi3";
+        const modelName = req.model || "gemma2:2b";
 
         const response = await fetch(url, {
             method: "POST",
