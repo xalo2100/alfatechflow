@@ -1,14 +1,9 @@
 import { AIRequest, AIResponse, AIProviderImplementation } from "./types";
 import { GeminiProvider } from "./providers/gemini";
-import { OpenRouterProvider } from "./providers/openrouter";
-import { ZaiProvider } from "./providers/zai";
 import { LocalVPSProvider } from "./providers/local-vps";
 
 const providers: Record<string, AIProviderImplementation> = {
     gemini: new GeminiProvider(),
-    xiaomi: new OpenRouterProvider(),
-    qwen: new OpenRouterProvider(),
-    zai: new ZaiProvider(),
     local: new LocalVPSProvider(),
 };
 
@@ -16,7 +11,6 @@ const providers: Record<string, AIProviderImplementation> = {
  * Resolver de modelo dinámico (Routing)
  */
 export function resolverModelo(tarea: string) {
-    // Si la tarea es un informe técnico, el usuario prefiere su VPS local por defecto
     if (tarea === 'informeTecnico') {
         return {
             provider: ('local' as const),
@@ -49,7 +43,7 @@ export async function callAI(req: AIRequest): Promise<AIResponse> {
     } catch (error) {
         console.error(`[AI ERROR] Failed to call ${req.provider}:`, error);
 
-        // Fallback inteligente: Si falla cualquier otro, ir a Gemini
+        // Fallback inteligente a Gemini
         if (req.provider !== 'gemini') {
             console.log(`[AI CORE] Attempting fallback to Gemini...`);
             return await providers.gemini.call({

@@ -68,10 +68,7 @@ export default function TestAIPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="local">Nube Local (VPS phi3)</SelectItem>
-                                    <SelectItem value="xiaomi">Xiaomi MiMo (OpenRouter)</SelectItem>
-                                    <SelectItem value="qwen">Qwen (OpenRouter)</SelectItem>
                                     <SelectItem value="gemini">Gemini 2.0 (Google)</SelectItem>
-                                    <SelectItem value="zai">Z.ai / Zhipu (GLM)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

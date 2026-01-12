@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'xiaomi' | 'zai' | 'qwen' | 'local';
+export type AIProvider = 'gemini' | 'local';
 
 export interface AIMessage {
     role: 'system' | 'user' | 'assistant';
