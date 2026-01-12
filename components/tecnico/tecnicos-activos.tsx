@@ -29,9 +29,22 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
   const [isOpen, setIsOpen] = useState(false);
   const supabase = createClient();
 
-  const fetchActividad = async () => {
+  const fetchActividad = async (forceFull = false) => {
     try {
-      // 1. Obtener todos los perfiles (colegas)
+      if (!isOpen && !forceFull) {
+        // Carga ligera: solo perfiles para el contador
+        const { data: perfiles } = await supabase
+          .from("perfiles")
+          .select("id")
+          .neq("id", perfilActual.id);
+
+        if (perfiles) {
+          setCompañeros(perfiles.map(p => ({ ...p, nombre_completo: "", email: "", last_seen: null, tickets: [] })) as any);
+        }
+        return;
+      }
+
+      // Carga completa: cuando está abierto
       const { data: perfiles, error: errorPerfiles } = await supabase
         .from("perfiles")
         .select("id, nombre_completo, email, last_seen")
@@ -40,7 +53,6 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
 
       if (errorPerfiles) throw errorPerfiles;
 
-      // 2. Obtener tickets activos
       const { data: ticketsActivos, error: errorTickets } = await supabase
         .from("tickets")
         .select("id, cliente_nombre, estado, asignado_a, updated_at")
@@ -49,7 +61,6 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
 
       if (errorTickets) throw errorTickets;
 
-      // 3. Mapear actividad
       const data: PerfilConActividad[] = (perfiles || []).map(p => ({
         ...p,
         tickets: (ticketsActivos || []).filter(t => t.asignado_a === p.id)
@@ -103,7 +114,14 @@ export function TecnicosActivos({ perfilActual }: { perfilActual: any }) {
     <Card>
       <CardHeader className="py-3">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            const nextOpen = !isOpen;
+            setIsOpen(nextOpen);
+            if (nextOpen) {
+              setLoading(true);
+              fetchActividad(true);
+            }
+          }}
           className="flex items-center justify-between w-full hover:bg-muted/50 -m-2 p-2 rounded-md transition-colors"
         >
           <CardTitle className="flex items-center gap-2 text-base">

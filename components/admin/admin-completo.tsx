@@ -80,6 +80,8 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
   const [ticketParaEliminar, setTicketParaEliminar] = useState<Ticket | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [eliminandoTicket, setEliminandoTicket] = useState(false);
+  const [activeTab, setActiveTab] = useState("metricas");
+  const [initializedTabs, setInitializedTabs] = useState<Set<string>>(new Set(["metricas"]));
   const supabase = createClient();
 
   // ... (rest of the code)
@@ -269,13 +271,13 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
 
     const loadData = async () => {
       try {
-        // Cargar datos en paralelo pero con manejo de errores individual
-        const promises = [
-          fetchStats().catch(err => console.error("Error en fetchStats:", err)),
-          fetchTickets().catch(err => console.error("Error en fetchTickets:", err)),
-          fetchUsuarios().catch(err => console.error("Error en fetchUsuarios:", err)),
-        ];
-        await Promise.allSettled(promises);
+        // Cargar SOLO los tickets inicialmente
+        await fetchTickets().catch(err => console.error("Error en fetchTickets:", err));
+
+        // Si la pestaña inicial es métricas, cargarlas también
+        if (activeTab === "metricas") {
+          fetchStats().catch(err => console.error("Error en fetchStats:", err));
+        }
       } catch (error) {
         console.error("Error cargando datos iniciales:", error);
       } finally {
@@ -415,7 +417,20 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           <TecnicosActivos perfilActual={perfil} />
         </div>
 
-        <Tabs defaultValue="metricas" className="w-full">
+        <Tabs
+          defaultValue="metricas"
+          className="w-full"
+          onValueChange={(value) => {
+            setActiveTab(value);
+            if (!initializedTabs.has(value)) {
+              console.log(`[LAZY LOAD] Inicializando pestaña: ${value}`);
+              if (value === "metricas") fetchStats();
+              if (value === "usuarios") fetchUsuarios();
+              if (value === "tickets") fetchTickets();
+              setInitializedTabs(prev => new Set(prev).add(value));
+            }
+          }}
+        >
           <TabsList className="w-full justify-start overflow-x-auto h-auto p-1">
             <TabsTrigger value="metricas">
               <BarChart3 className="h-4 w-4 mr-2" />

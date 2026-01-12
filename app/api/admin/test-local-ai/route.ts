@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
             // Prueba exacta con el modelo y mensaje solicitado por el usuario
             console.log(`[TEST LOCAL AI] Enviando mensaje de prueba a ${url}`);
 
-            const mainRes = await fetch(url, {
+            let targetUrl = url;
+            let mainRes = await fetch(targetUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -41,6 +42,24 @@ export async function GET(request: NextRequest) {
                 signal: controller.signal
             });
 
+            // Si falla con 404, intentamos añadir /completions (común en APIs compatibles con OpenAI)
+            if (mainRes.status === 404 && !url.endsWith('/completions')) {
+                const altUrl = url.endsWith('/') ? `${url}completions` : `${url}/completions`;
+                console.log(`[TEST LOCAL AI] 404 detectado, reintentando con: ${altUrl}`);
+                targetUrl = altUrl;
+                mainRes = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: "gemma2:2b",
+                        messages: [
+                            { role: "user", content: "Hola, respóndeme solo: OK" }
+                        ]
+                    }),
+                    signal: controller.signal
+                });
+            }
+
             clearTimeout(timeoutId);
 
             if (mainRes.ok) {
@@ -50,11 +69,11 @@ export async function GET(request: NextRequest) {
                     return NextResponse.json({
                         success: true,
                         connected: true,
-                        url: url,
+                        url: targetUrl,
                         details: {
                             model: "gemma2:2b",
                             response: resultData.choices[0].message.content,
-                            message: "Servidor responde correctamente con el formato esperado."
+                            message: `Servidor responde correctamente${targetUrl !== url ? ' (usando /completions)' : ''}.`
                         }
                     });
                 }
@@ -62,7 +81,7 @@ export async function GET(request: NextRequest) {
                 throw new Error("El servidor respondió pero el formato JSON no es el esperado (choices[0].message.content)");
             }
 
-            throw new Error(`Servidor respondió con status: ${mainRes.status}`);
+            throw new Error(`Servidor respondió con status: ${mainRes.status} en la URL: ${targetUrl}`);
         } catch (fetchError: any) {
             clearTimeout(timeoutId);
             console.error("[TEST LOCAL AI] Error en fetch:", fetchError.message);
