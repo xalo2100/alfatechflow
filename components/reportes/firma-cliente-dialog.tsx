@@ -77,8 +77,8 @@ export function FirmaClienteDialog({
     }
 
     try {
-      // Obtener la firma como imagen base64
-      const firmaDataURL = signatureRef.current.toDataURL("image/png");
+      // Obtener la firma como imagen JPEG comprimida para reducir el tamaño del PDF
+      const firmaDataURL = signatureRef.current.toDataURL("image/jpeg", 0.5);
 
       const firmaData = {
         imagen: firmaDataURL,

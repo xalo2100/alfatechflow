@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
 import { sendEmail } from "@/lib/services/emailService";
 
+// Caché simple para el logo de la empresa para evitar descargas repetidas
+const logoCache: Record<string, { base64: string; mimeType: string; timestamp: number }> = {};
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hora
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('[PERF] Inicio procesado email:', new Date().toISOString());
+
   try {
     const { reporteId, emailDestino, empresaId } = await request.json();
+    console.log(`[PERF] Datos recibidos en ${Date.now() - startTime}ms`);
 
     if (!reporteId || !emailDestino) {
       return NextResponse.json(
@@ -29,11 +36,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (reporteError || !reporte) {
+      console.log(`[PERF] Reporte no encontrado en ${Date.now() - startTime}ms`);
       return NextResponse.json(
         { error: "Reporte no encontrado" },
         { status: 404 }
       );
     }
+    console.log(`[PERF] Reporte y Ticket obtenidos en ${Date.now() - startTime}ms`);
 
     let reporteData: any = {};
     try {
@@ -69,23 +78,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Pre-procesar logo si es URL para que jsPDF pueda usarlo (Server-side)
+    // Pre-procesar logo con caché
     if (appConfig?.logo && appConfig.logo.startsWith('http')) {
-      try {
-        console.log('Descargando logo para PDF:', appConfig.logo);
-        const response = await fetch(appConfig.logo);
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const base64 = buffer.toString('base64');
-          const mimeType = response.headers.get('content-type') || 'image/png';
-          appConfig.logo = `data:${mimeType};base64,${base64}`;
-          console.log('Logo convertido a base64 exitosamente');
-        } else {
-          console.warn('Error descargando logo, status:', response.status);
+      const cacheKey = appConfig.logo;
+      const now = Date.now();
+
+      if (logoCache[cacheKey] && (now - logoCache[cacheKey].timestamp < CACHE_DURATION)) {
+        console.log('Usando logo desde caché:', cacheKey);
+        appConfig.logo = logoCache[cacheKey].base64;
+      } else {
+        try {
+          console.log('Descargando logo para PDF (no en caché):', cacheKey);
+          const response = await fetch(cacheKey);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64 = buffer.toString('base64');
+            const mimeType = response.headers.get('content-type') || 'image/png';
+            const base64Full = `data:${mimeType};base64,${base64}`;
+
+            // Guardar en caché
+            logoCache[cacheKey] = {
+              base64: base64Full,
+              mimeType,
+              timestamp: now
+            };
+
+            appConfig.logo = base64Full;
+            console.log('Logo descargado y cacheado exitosamente');
+          } else {
+            console.warn('Error descargando logo, status:', response.status);
+          }
+        } catch (e) {
+          console.error('Error procesando logo para PDF:', e);
         }
-      } catch (e) {
-        console.error('Error procesando logo para PDF:', e);
       }
     }
 
@@ -110,6 +136,7 @@ export async function POST(request: NextRequest) {
     } catch (pdfError) {
       console.error('Error generando PDF para adjuntar:', pdfError);
     }
+    console.log(`[PERF] Generación de PDF terminada en ${Date.now() - startTime}ms`);
 
     // Generar cuerpo formal del email (Texto simple + HTML básico)
     const nombreCliente = reporteData.responsable || reporte.ticket?.cliente_nombre || "Cliente";
@@ -156,7 +183,7 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`[EMAIL] Intento ${attempt + 1}/${maxRetries + 1} de envío...`);
         const result = await sendEmail(emailOptions);
-        console.log(`[EMAIL] ✅ Email enviado exitosamente en intento ${attempt + 1}`);
+        console.log(`[PERF] 📧 Email enviado exitosamente en intento ${attempt + 1}. Tiempo total: ${Date.now() - startTime}ms`);
         return NextResponse.json({
           success: true,
           message: "Email enviado correctamente",

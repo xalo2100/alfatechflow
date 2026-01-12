@@ -401,8 +401,8 @@ export function ReporteAlfapackDialog({
 
     try {
       console.log("📧 Enviando reporte por email a:", emailDestino);
-      // Esperar un momento para asegurar que el reporte esté disponible en la BD
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Reducimos el delay artificial
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       const emailResponse = await fetch("/api/reportes/enviar-email", {
         method: "POST",
@@ -485,34 +485,38 @@ export function ReporteAlfapackDialog({
       const { data: { user } } = await supabase.auth.getUser();
       const creadorId = user?.id || tecnicoId;
 
-      const { data: reporteInsertado, error } = await supabase.from("reportes").insert({
-        ticket_id: ticketId,
-        tecnico_id: creadorId, // Usar el ID del usuario actual (quien crea el reporte)
-        notas_brutas: notasBrutas,
-        reporte_ia: JSON.stringify(reporteCompleto),
-        repuestos_lista: formData.repuestos.map(r => `${r.cantidad}x ${r.descripcion}${r.codigo ? ` (${r.codigo})` : ""}`).join(", "),
-        costo_reparacion: null,
-        empresa_id: selectedEmpresaId || null, // Guardar la empresa seleccionada
-      }).select().single();
+      const [reporteResult, ticketResult] = await Promise.all([
+        supabase.from("reportes").insert({
+          ticket_id: ticketId,
+          tecnico_id: creadorId,
+          notas_brutas: notasBrutas,
+          reporte_ia: JSON.stringify(reporteCompleto),
+          repuestos_lista: formData.repuestos.map(r => `${r.cantidad}x ${r.descripcion}${r.codigo ? ` (${r.codigo})` : ""}`).join(", "),
+          costo_reparacion: null,
+          empresa_id: selectedEmpresaId || null,
+        }).select().single(),
+
+        supabase
+          .from("tickets")
+          .update({
+            estado: "finalizado",
+            hora_termino: new Date().toISOString()
+          })
+          .eq("id", ticketId)
+      ]);
+
+      const { data: reporteInsertado, error } = reporteResult;
+      const { error: updateError } = ticketResult;
 
       if (error) throw error;
 
-      // Guardar el ID del reporte para poder firmarlo después
-      setReporteGuardadoId(reporteInsertado.id);
-
-      // Actualizar ticket a finalizado SOLO cuando se guarda el reporte
-      // Y registrar hora de término
-      const { error: updateError } = await supabase
-        .from("tickets")
-        .update({
-          estado: "finalizado",
-          hora_termino: new Date().toISOString()
-        })
-        .eq("id", ticketId);
+      // Guardar el ID del reporte para poder firmarlo después si es necesario
+      if (reporteInsertado) {
+        setReporteGuardadoId(reporteInsertado.id);
+      }
 
       if (updateError) {
         console.warn("Error al actualizar estado del ticket:", updateError);
-        // No lanzamos error para no bloquear el guardado del reporte, pero avisamos
       }
 
       // Enviar email solo si se solicita
