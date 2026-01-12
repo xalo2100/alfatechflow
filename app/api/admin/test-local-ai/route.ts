@@ -21,12 +21,13 @@ export async function GET(request: NextRequest) {
 
         const candidates = [
             url, // 1. URL exacta configurada
-            url.endsWith("/") ? `${url}completions` : `${url}/completions`, // 2. /completions
-            url.endsWith("/") ? `${url}chat/completions` : `${url}/chat/completions`, // 3. /chat/completions
-            `${baseIpPort}/v1/chat/completions`, // 4. Estándar V1
-            `${baseIpPort}/v1/chat`, // 5. Otra variante V1
-            `${baseIpPort}/chat/completions`, // 6. Variante sin v1
-            baseIpPort, // 7. Solo base
+            url.endsWith("/v1/chat") ? url : (url.endsWith("/") ? `${url}v1/chat` : `${url}/v1/chat`), // 2. Garantizar /v1/chat
+            url.endsWith("/") ? `${url}completions` : `${url}/completions`, // 3. /completions
+            url.endsWith("/") ? `${url}chat/completions` : `${url}/chat/completions`, // 4. /chat/completions
+            `${baseIpPort}/v1/chat`, // 5. Forzar V1 chat
+            `${baseIpPort}/v1/chat/completions`, // 6. Estándar V1
+            `${baseIpPort}/chat/completions`, // 7. Variante sin v1
+            baseIpPort, // 8. Solo base
         ];
 
         // Eliminar duplicados y nulos
@@ -59,8 +60,10 @@ export async function GET(request: NextRequest) {
 
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.choices?.[0]?.message?.content) {
-                        console.log(`[TEST LOCAL AI] ¡ÉXITO en ${targetUrl}!`);
+                    // Relajamos la condición: basta con que exista choices[0].message
+                    if (data.choices?.[0]?.message) {
+                        const content = data.choices[0].message.content;
+                        console.log(`[TEST LOCAL AI] ¡ÉXITO en ${targetUrl}! (Content: "${content}")`);
                         successfulUrl = targetUrl;
                         responseData = data;
                         break; // Encontramos uno que funciona
@@ -83,7 +86,7 @@ export async function GET(request: NextRequest) {
                 url: successfulUrl,
                 details: {
                     model: "gemma2:2b",
-                    response: responseData.choices[0].message.content,
+                    response: responseData.choices[0].message.content || "(Respuesta vacía)",
                     message: successfulUrl === url
                         ? "Conexión exitosa con la URL configurada."
                         : `Conectado exitosamente usando ruta alternativa: ${successfulUrl}. Sugerencia: Actualiza la configuración.`
