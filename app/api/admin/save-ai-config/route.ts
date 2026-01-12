@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
             updates.push({
                 clave: "local_ai_url",
                 valor: localAiUrl,
+                valor_encriptado: "", // Placeholder para evitar error de NOT NULL si la migración no se ha corrido
                 descripcion: "URL del servidor de IA local (VPS)"
             });
         }
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
             updates.push({
                 clave: "preferred_ai_provider",
                 valor: preferredProvider,
+                valor_encriptado: "", // Placeholder para evitar error de NOT NULL si la migración no se ha corrido
                 descripcion: "Proveedor de IA preferido (local o gemini)"
             });
         }

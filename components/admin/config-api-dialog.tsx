@@ -170,7 +170,7 @@ export function ConfigAIDialog({
                   value={localAiUrl}
                   onChange={(e) => setLocalAiUrl(e.target.value)}
                   placeholder="http://tu-vps-ip:3000/v1/chat"
-                  className="font-mono text-xs bg-white"
+                  className="font-mono text-xs"
                 />
                 <p className="text-[10px] text-muted-foreground italic">
                   Este es el motor principal. Se recomienda usar la IP del VPS para mayor velocidad.
@@ -195,7 +195,7 @@ export function ConfigAIDialog({
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder={hasGeminiKey ? "••••••••••••••••" : "Pega tu API key aquí (AIza...)"}
-                    className="font-mono text-xs bg-white pr-10"
+                    className="font-mono text-xs pr-10"
                   />
                   <Button
                     type="button"
@@ -216,16 +216,16 @@ export function ConfigAIDialog({
             </div>
 
             {/* Estrategia de IA */}
-            <div className="space-y-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
+            <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                 <Cpu className="h-4 w-4" />
                 Estrategia de Operación
               </div>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-blue-800">Cerebro Preferido</Label>
+                  <Label className="text-xs font-bold text-muted-foreground">Cerebro Preferido</Label>
                   <Select value={preferredProvider} onValueChange={(v: any) => setPreferredProvider(v)}>
-                    <SelectTrigger className="bg-white border-blue-200">
+                    <SelectTrigger className="border-muted">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -235,11 +235,11 @@ export function ConfigAIDialog({
                   </Select>
                 </div>
 
-                <div className="flex gap-2 p-2 bg-blue-100/50 rounded text-[10px] text-blue-800 leading-tight">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
+                <div className="flex gap-2 p-2 bg-primary/10 rounded text-[10px] text-muted-foreground leading-tight">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-primary" />
                   <p>
-                    <strong>Failover Inteligente:</strong> Si el motor seleccionado falla, el sistema usará automáticamente el otro como respaldo.
-                    <strong> Recuperación:</strong> En cuanto el motor preferido esté online de nuevo, el sistema volverá a usarlo automáticamente.
+                    <strong className="text-foreground">Failover Inteligente:</strong> Si el motor seleccionado falla, el sistema usará automáticamente el otro como respaldo.
+                    <strong className="text-foreground"> Recuperación:</strong> En cuanto el motor preferido esté online de nuevo, el sistema volverá a usarlo automáticamente.
                   </p>
                 </div>
               </div>
