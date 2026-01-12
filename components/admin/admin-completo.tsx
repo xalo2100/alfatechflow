@@ -14,6 +14,7 @@ import { PersonalizacionDialog } from "@/components/admin/personalizacion-dialog
 import { SupabaseStatus } from "@/components/admin/supabase-status";
 import { PipedriveStatus } from "@/components/admin/pipedrive-status";
 import { GeminiStatus } from "@/components/admin/gemini-status";
+import { LocalAIStatus } from "@/components/admin/local-ai-status";
 import { ResendStatus } from "@/components/admin/resend-status";
 import { CreateTicketDialog } from "@/components/ventas/create-ticket-dialog";
 import { TicketCard } from "@/components/ventas/ticket-card";
@@ -770,8 +771,9 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
           </TabsContent>
 
           <TabsContent value="configuracion" className="mt-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               <SupabaseStatus />
+              <LocalAIStatus />
               <GeminiStatus />
               <PipedriveStatus />
               <ResendStatus />
