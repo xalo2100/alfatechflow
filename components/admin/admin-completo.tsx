@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { format, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2, Database as DatabaseIcon, Mail, HardDrive } from "lucide-react";
+import { Plus, BarChart3, Users, FileText, UserPlus, Key, Settings, Palette, Trash2, KeyRound, Building2, Database as DatabaseIcon, Mail, HardDrive, Cpu } from "lucide-react";
 import { PersonalizacionDialog } from "@/components/admin/personalizacion-dialog";
 import { SupabaseStatus } from "@/components/admin/supabase-status";
 import { PipedriveStatus } from "@/components/admin/pipedrive-status";
@@ -24,7 +24,7 @@ import { CambiarContraseñaDialog } from "@/components/admin/cambiar-contraseña
 import { ConfirmarEliminarDialog } from "@/components/admin/confirmar-eliminar-dialog";
 import { DeleteTicketDialog } from "@/components/admin/delete-ticket-dialog";
 import { AsignarTecnicoDialog } from "@/components/admin/asignar-tecnico-dialog";
-import { ConfigApiDialog } from "@/components/admin/config-api-dialog";
+import { ConfigAIDialog } from "@/components/admin/config-api-dialog";
 import { ConfigPipedriveDialog } from "@/components/admin/config-pipedrive-dialog";
 import { ConfigSupabaseDialog } from "@/components/admin/config-supabase-dialog";
 import { ConfigResendDialog } from "@/components/admin/config-resend-dialog";
@@ -780,17 +780,17 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Configuración de IA
+                  <Cpu className="h-5 w-5" />
+                  Configuración de IA Híbrida
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Configura la API key de Google Gemini para habilitar la generación automática de reportes técnicos.
+                  Configura los motores de IA (Local VPS y Gemini). El sistema soporta failover automático y recuperación de conexión.
                 </p>
                 <Button onClick={() => setShowConfigApi(true)}>
-                  <Key className="h-4 w-4 mr-2" />
-                  Configurar API Key de Gemini
+                  <Settings className="h-4 w-4 mr-2" />
+                  Gestionar Motores de IA
                 </Button>
               </CardContent>
             </Card>
@@ -909,11 +909,11 @@ export function AdminCompleto({ perfil }: { perfil: any }) {
         }}
       />
 
-      <ConfigApiDialog
+      <ConfigAIDialog
         open={showConfigApi}
         onOpenChange={setShowConfigApi}
         onSuccess={() => {
-          // Recargar si es necesario
+          // Recargar datos si es necesario
         }}
       />
 

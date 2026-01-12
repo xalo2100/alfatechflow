@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Send, Loader2, BrainCircuit } from "lucide-react";
+import { Sparkles, Send, Loader2, BrainCircuit, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TestAIPage() {
     const [prompt, setPrompt] = useState("Hola, ¿quién eres y qué modelo de IA estás usando?");
-    const [provider, setProvider] = useState("xiaomi");
+    const [provider, setProvider] = useState("local");
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
 
@@ -43,6 +43,14 @@ export default function TestAIPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-8">
+            <Button
+                variant="ghost"
+                onClick={() => window.location.href = '/admin'}
+                className="mb-4"
+            >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver al Panel
+            </Button>
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
                     <BrainCircuit className="w-8 h-8" />
