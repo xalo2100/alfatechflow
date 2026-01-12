@@ -12,6 +12,7 @@ interface ConnectionStatus {
     details?: {
         models?: string[];
         error?: string;
+        workingUrl?: string;
     };
 }
 
@@ -49,9 +50,10 @@ export function LocalAIStatus() {
             } else {
                 setStatus({
                     connected: true,
-                    message: "VPS Conectado y listo",
+                    message: data.details?.message || "VPS Conectado y listo",
                     details: {
                         models: data.details?.models || [],
+                        workingUrl: data.url
                     },
                 });
             }

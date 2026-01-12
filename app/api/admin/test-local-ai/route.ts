@@ -16,83 +16,90 @@ export async function GET(request: NextRequest) {
 
         const url = config?.valor || process.env.LOCAL_AI_URL || "http://184.174.36.189:3000/v1/chat";
 
-        console.log(`[TEST LOCAL AI] Verificando conexión con: ${url}`);
+        // 2. Definir candidatos de URL para probar
+        const baseIpPort = url.replace(/^(https?:\/\/[^\/]+).*$/, "$1"); // Extraer http://IP:PORT
 
-        // 2. Intentar una petición mínima (un ping o lista de modelos)
-        // Como es usualmente un servidor tipo OpenAI/Ollama, intentamos /v1/models o similar
-        // Si no, simplemente un fetch al endpoint principal con un timeout corto
+        const candidates = [
+            url, // 1. URL exacta configurada
+            url.endsWith("/") ? `${url}completions` : `${url}/completions`, // 2. /completions
+            url.endsWith("/") ? `${url}chat/completions` : `${url}/chat/completions`, // 3. /chat/completions
+            `${baseIpPort}/v1/chat/completions`, // 4. Estándar V1
+            `${baseIpPort}/v1/chat`, // 5. Otra variante V1
+            `${baseIpPort}/chat/completions`, // 6. Variante sin v1
+            baseIpPort, // 7. Solo base
+        ];
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
+        // Eliminar duplicados y nulos
+        const uniqueCandidates = Array.from(new Set(candidates)).filter(Boolean);
 
-        try {
-            // Prueba exacta con el modelo y mensaje solicitado por el usuario
-            console.log(`[TEST LOCAL AI] Enviando mensaje de prueba a ${url}`);
+        console.log(`[TEST LOCAL AI] Iniciando descubrimiento en ${uniqueCandidates.length} rutas...`);
 
-            let targetUrl = url;
-            let mainRes = await fetch(targetUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: "gemma2:2b",
-                    messages: [
-                        { role: "user", content: "Hola, respóndeme solo: OK" }
-                    ]
-                }),
-                signal: controller.signal
-            });
+        let lastError = "";
+        let successfulUrl = "";
+        let responseData: any = null;
 
-            // Si falla con 404, intentamos añadir /completions (común en APIs compatibles con OpenAI)
-            if (mainRes.status === 404 && !url.endsWith('/completions')) {
-                const altUrl = url.endsWith('/') ? `${url}completions` : `${url}/completions`;
-                console.log(`[TEST LOCAL AI] 404 detectado, reintentando con: ${altUrl}`);
-                targetUrl = altUrl;
-                mainRes = await fetch(targetUrl, {
+        for (const targetUrl of uniqueCandidates) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s por intento
+
+            try {
+                console.log(`[TEST LOCAL AI] Probando: ${targetUrl}`);
+                const res = await fetch(targetUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: "gemma2:2b",
-                        messages: [
-                            { role: "user", content: "Hola, respóndeme solo: OK" }
-                        ]
+                        messages: [{ role: "user", content: "Hola, responde: OK" }],
+                        max_tokens: 5
                     }),
                     signal: controller.signal
                 });
-            }
 
-            clearTimeout(timeoutId);
+                clearTimeout(timeoutId);
 
-            if (mainRes.ok) {
-                const resultData = await mainRes.json();
-
-                if (resultData.choices?.[0]?.message?.content) {
-                    return NextResponse.json({
-                        success: true,
-                        connected: true,
-                        url: targetUrl,
-                        details: {
-                            model: "gemma2:2b",
-                            response: resultData.choices[0].message.content,
-                            message: `Servidor responde correctamente${targetUrl !== url ? ' (usando /completions)' : ''}.`
-                        }
-                    });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.choices?.[0]?.message?.content) {
+                        console.log(`[TEST LOCAL AI] ¡ÉXITO en ${targetUrl}!`);
+                        successfulUrl = targetUrl;
+                        responseData = data;
+                        break; // Encontramos uno que funciona
+                    }
+                } else {
+                    console.log(`[TEST LOCAL AI] Falló ${targetUrl} con status ${res.status}`);
+                    lastError = `Status ${res.status} en ${targetUrl}`;
                 }
-
-                throw new Error("El servidor respondió pero el formato JSON no es el esperado (choices[0].message.content)");
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                console.log(`[TEST LOCAL AI] Error en ${targetUrl}: ${err.message}`);
+                lastError = err.message;
             }
-
-            throw new Error(`Servidor respondió con status: ${mainRes.status} en la URL: ${targetUrl}`);
-        } catch (fetchError: any) {
-            clearTimeout(timeoutId);
-            console.error("[TEST LOCAL AI] Error en fetch:", fetchError.message);
-            return NextResponse.json({
-                success: false,
-                connected: false,
-                error: fetchError.message || "No se pudo conectar al servidor VPS"
-            }, { status: 500 });
         }
+
+        if (successfulUrl) {
+            return NextResponse.json({
+                success: true,
+                connected: true,
+                url: successfulUrl,
+                details: {
+                    model: "gemma2:2b",
+                    response: responseData.choices[0].message.content,
+                    message: successfulUrl === url
+                        ? "Conexión exitosa con la URL configurada."
+                        : `Conectado exitosamente usando ruta alternativa: ${successfulUrl}. Sugerencia: Actualiza la configuración.`
+                }
+            });
+        }
+
+        return NextResponse.json({
+            success: false,
+            connected: false,
+            error: `No se encontró ninguna ruta válida. Último error: ${lastError}`,
+            attempted: uniqueCandidates
+        }, { status: 500 });
+
     } catch (error: any) {
-        console.error("Error en test-local-ai:", error);
+        console.error("Error crítico en test-local-ai:", error);
         return NextResponse.json(
             { error: error.message || "Error interno del servidor" },
             { status: 500 }
