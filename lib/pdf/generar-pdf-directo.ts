@@ -114,7 +114,7 @@ export function generarPDFDirecto(reporte: Reporte, appConfig?: AppConfig): Arra
             // Asumimos que logoUrl es base64 o una URL accesible
             // Ajustamos posición y tamaño (dimensión cuadrada solicitada)
             // Logo de 35x30mm (más ancho como solicitado)
-            pdf.addImage(logoUrl, 'PNG', margin, yPos, 35, 30);
+            pdf.addImage(logoUrl, 'PNG', margin, yPos, 35, 30, undefined, 'FAST');
 
             // Mover cursor debajo del logo
             yPos += 35;
@@ -529,7 +529,7 @@ export function generarPDFDirecto(reporte: Reporte, appConfig?: AppConfig): Arra
     // FIRMAS
     checkNewPage(60);
     yPos += 10;
-    
+
     const firmaStartY = yPos;
 
     // Técnico (Izquierda)
@@ -557,36 +557,36 @@ export function generarPDFDirecto(reporte: Reporte, appConfig?: AppConfig): Arra
 
         try {
             // Intentar agregar imagen de firma
-            pdf.addImage(reporteData.firma_tecnico.imagen, 'PNG', margin, yPos + 2, 40, 20);
+            pdf.addImage(reporteData.firma_tecnico.imagen, 'PNG', margin, yPos + 2, 40, 20, undefined, 'FAST');
         } catch (e) {
             console.error("Error agregando firma técnico:", e);
         }
     }
-    
+
     const firmaTecnicoEndY = yPos + 25;
 
     // Cliente (Derecha) - Usar firmaStartY para alinear
     yPos = firmaStartY;
-    
+
     // Fecha de generación (alineada con el bloque derecho)
     pdf.setFontSize(8);
     pdf.setTextColor(100, 100, 100);
     pdf.text('Fecha de Generación', pageWidth - margin - 50, yPos);
-    
+
     // Ajuste para que la fecha quede bien posicionada
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(0, 0, 0);
     pdf.text(format(new Date(reporte.created_at), 'dd MMM yyyy, HH:mm', { locale: es }), pageWidth - margin - 50, yPos + 5);
-    
+
     // Alinear con el bloque de técnico
-    yPos += 15; 
+    yPos += 15;
 
     if (reporteData.firma_cliente?.nombre) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(7);
         pdf.setTextColor(100, 100, 100);
         pdf.text('NOMBRE Y FIRMA CLIENTE', pageWidth - margin - 50, yPos);
-        
+
         yPos += 5;
         // Solo nombre, sin "Firmado por:"
         pdf.text(reporteData.firma_cliente.nombre, pageWidth - margin - 50, yPos);
@@ -594,15 +594,15 @@ export function generarPDFDirecto(reporte: Reporte, appConfig?: AppConfig): Arra
         if (reporteData.firma_cliente.imagen) {
             try {
                 // Intentar agregar imagen de firma
-                pdf.addImage(reporteData.firma_cliente.imagen, 'PNG', pageWidth - margin - 50, yPos + 2, 40, 20);
+                pdf.addImage(reporteData.firma_cliente.imagen, 'PNG', pageWidth - margin - 50, yPos + 2, 40, 20, undefined, 'FAST');
             } catch (e) {
                 console.error("Error agregando firma cliente:", e);
             }
         }
     }
-    
+
     const firmaClienteEndY = yPos + 25;
-    
+
     // Actualizar yPos al máximo de los dos bloques
     yPos = Math.max(firmaTecnicoEndY, firmaClienteEndY);
 

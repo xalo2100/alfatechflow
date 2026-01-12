@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Usar el router para elegir el mejor modelo para esta tarea
-        const config = resolverModelo('informeTecnico');
+        const config = await resolverModelo('informeTecnico');
 
         const prompt = `
 Eres un editor técnico de informes de servicio al cliente de alto nivel.

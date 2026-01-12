@@ -8,10 +8,19 @@ const providers: Record<string, AIProviderImplementation> = {
     local: new LocalVPSProvider(),
 };
 
+let cachedConfig: { localAiUrl: string; preferredProvider: AIProvider } | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 60000; // 1 minuto
+
 /**
- * Obtiene la configuración de IA desde la base de datos
+ * Obtiene la configuración de IA desde la base de datos (con caché)
  */
 async function getAIConfig() {
+    const now = Date.now();
+    if (cachedConfig && (now - lastCacheTime < CACHE_TTL)) {
+        return cachedConfig;
+    }
+
     try {
         const supabase = await createAdminClient();
         const { data } = await supabase
@@ -24,10 +33,12 @@ async function getAIConfig() {
             config[item.clave] = item.valor || "";
         });
 
-        return {
+        cachedConfig = {
             localAiUrl: config.local_ai_url || process.env.LOCAL_AI_URL || "http://184.174.36.189:3000/v1/chat",
             preferredProvider: (config.preferred_ai_provider as AIProvider) || "local"
         };
+        lastCacheTime = now;
+        return cachedConfig;
     } catch (error) {
         console.error("[AI CONFIG] Error fetching config from DB:", error);
         return {
